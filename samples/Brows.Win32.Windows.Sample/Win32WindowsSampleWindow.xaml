@@ -1,0 +1,190 @@
+﻿<Window x:Class="Brows.Win32WindowsSampleWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Brows Win32 Windows Sample"
+        Width="900"
+        Height="650"
+        MinWidth="720"
+        MinHeight="520"
+        Background="#F3F5F8"
+        Loaded="Window_Loaded"
+        Closing="Window_Closing">
+  <Window.Resources>
+    <Style x:Key="PreviewCard" TargetType="Border">
+      <Setter Property="Background" Value="White" />
+      <Setter Property="BorderBrush" Value="#DDE2E8" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="Padding" Value="20" />
+    </Style>
+    <Style x:Key="ActionButton" TargetType="Button">
+      <Setter Property="Padding" Value="16,9" />
+      <Setter Property="MinHeight" Value="38" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Background" Value="#2059A6" />
+      <Setter Property="Foreground" Value="White" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Cursor" Value="Hand" />
+    </Style>
+  </Window.Resources>
+
+  <Grid Margin="28">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+      <RowDefinition Height="Auto" />
+    </Grid.RowDefinitions>
+
+    <StackPanel Grid.Row="0" Margin="0,0,0,22">
+      <TextBlock Text="Windows shell previews"
+                 FontSize="28"
+                 FontWeight="SemiBold"
+                 Foreground="#182230" />
+      <TextBlock Margin="0,5,0,0"
+                 Text="Inspect the shell overlay icon and thumbnail returned for a file or folder."
+                 FontSize="14"
+                 Foreground="#647184" />
+    </StackPanel>
+
+    <Border Grid.Row="1" Style="{StaticResource PreviewCard}" Padding="16" Margin="0,0,0,18">
+      <Grid>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+        <TextBlock Grid.Column="0"
+                   Text="Path"
+                   VerticalAlignment="Center"
+                   Margin="0,0,12,0"
+                   FontWeight="SemiBold"
+                   Foreground="#344054" />
+        <TextBox x:Name="PathTextBox"
+                 Grid.Column="1"
+                 MinHeight="38"
+                 Padding="10,8"
+                 VerticalContentAlignment="Center"
+                 BorderBrush="#C9D1DC"
+                 KeyDown="PathTextBox_KeyDown"
+                 ToolTip="Enter a file or folder path. You can also paste a path here." />
+        <Button x:Name="BrowseButton"
+                Grid.Column="2"
+                Content="Browse…"
+                Margin="10,0,0,0"
+                Click="BrowseButton_Click" />
+        <Button x:Name="LoadButton"
+                Grid.Column="3"
+                Content="Load preview"
+                Margin="8,0,0,0"
+                Style="{StaticResource ActionButton}"
+                Click="LoadButton_Click" />
+      </Grid>
+    </Border>
+
+    <Grid Grid.Row="2">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="18" />
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="18" />
+        <ColumnDefinition Width="*" />
+      </Grid.ColumnDefinitions>
+
+      <Border Grid.Column="0" Style="{StaticResource PreviewCard}">
+        <Grid>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+          </Grid.RowDefinitions>
+          <StackPanel Grid.Row="0" Margin="0,0,0,14">
+            <TextBlock Text="Overlay icon" FontSize="18" FontWeight="SemiBold" Foreground="#182230" />
+            <TextBlock Margin="0,4,0,0" Text="Shell overlay for this path" FontSize="12" Foreground="#647184" />
+          </StackPanel>
+          <Grid Grid.Row="1" MinHeight="210" Background="#F7F8FA">
+            <Image x:Name="OverlayImage" Width="96" Height="96" Stretch="Uniform" />
+            <TextBlock x:Name="OverlayPlaceholder"
+                       Text="No overlay icon"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       Foreground="#8A94A3"
+                       Visibility="Visible" />
+          </Grid>
+          <TextBlock x:Name="OverlayStatusText"
+                     Grid.Row="2"
+                     Margin="0,12,0,0"
+                     Text="Choose a path to inspect its overlay."
+                     TextWrapping="Wrap"
+                     Foreground="#647184" />
+        </Grid>
+      </Border>
+
+      <Border Grid.Column="2" Style="{StaticResource PreviewCard}">
+        <Grid>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+          </Grid.RowDefinitions>
+          <StackPanel Grid.Row="0" Margin="0,0,0,14">
+            <TextBlock Text="Thumbnail" FontSize="18" FontWeight="SemiBold" Foreground="#182230" />
+            <TextBlock Margin="0,4,0,0" Text="Shell image at 320 × 240 pixels" FontSize="12" Foreground="#647184" />
+          </StackPanel>
+          <Grid Grid.Row="1" MinHeight="210" Background="#F7F8FA">
+            <Image x:Name="ThumbnailImage" Margin="8" Stretch="Uniform" />
+            <TextBlock x:Name="ThumbnailPlaceholder"
+                       Text="No thumbnail"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       Foreground="#8A94A3"
+                       Visibility="Visible" />
+          </Grid>
+          <TextBlock x:Name="ThumbnailStatusText"
+                     Grid.Row="2"
+                     Margin="0,12,0,0"
+                     Text="Choose a path to request a shell thumbnail."
+                     TextWrapping="Wrap"
+                     Foreground="#647184" />
+        </Grid>
+      </Border>
+
+      <Border Grid.Column="4" Style="{StaticResource PreviewCard}">
+        <Grid>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+          </Grid.RowDefinitions>
+          <StackPanel Grid.Row="0" Margin="0,0,0,14">
+            <TextBlock Text="File icon" FontSize="18" FontWeight="SemiBold" Foreground="#182230" />
+            <TextBlock Margin="0,4,0,0" Text="Icon associated with this path" FontSize="12" Foreground="#647184" />
+          </StackPanel>
+          <Grid Grid.Row="1" MinHeight="210" Background="#F7F8FA">
+            <Image x:Name="IconImage" Width="96" Height="96" Stretch="Uniform" />
+            <TextBlock x:Name="IconPlaceholder"
+                       Text="No icon"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       Foreground="#8A94A3"
+                       Visibility="Visible" />
+          </Grid>
+          <TextBlock x:Name="IconStatusText"
+                     Grid.Row="2"
+                     Margin="0,12,0,0"
+                     Text="Choose a path to request its icon."
+                     TextWrapping="Wrap"
+                     Foreground="#647184" />
+        </Grid>
+      </Border>
+    </Grid>
+
+    <TextBlock x:Name="PageStatusText"
+               Grid.Row="3"
+               Margin="0,14,0,0"
+               Text="Folders can be entered or pasted in the path field."
+               Foreground="#647184"
+               TextTrimming="CharacterEllipsis" />
+  </Grid>
+</Window>
