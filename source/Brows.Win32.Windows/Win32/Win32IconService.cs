@@ -35,17 +35,16 @@ public sealed class Win32IconService : Win32BaseService {
 
     private async Task<BitmapSource> Attempt<TArg>(TArg arg,
                                                    Func<TArg, CancellationToken, Task<BitmapSource>> task,
-                                                   CancellationToken token) {
+                                                   CancellationToken cancellationToken) {
         if (task is null) {
             throw new ArgumentNullException(nameof(task));
         }
         var attempt = 1;
-        for (; ; )
-        {
+        for (; ; ) {
             try {
-                return await task(arg, token).ConfigureAwait(false);
+                return await task(arg, cancellationToken).ConfigureAwait(false);
             }
-            catch (OperationCanceledException) when (token.IsCancellationRequested) {
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
                 throw;
             }
             catch (Exception ex) {
@@ -58,7 +57,7 @@ public sealed class Win32IconService : Win32BaseService {
                 if (Log.Debug()) {
                     Log.Debug(ex);
                 }
-                await Task.Delay(AttemptDelay, token).ConfigureAwait(false);
+                await Task.Delay(AttemptDelay, cancellationToken).ConfigureAwait(false);
             }
         }
     }
