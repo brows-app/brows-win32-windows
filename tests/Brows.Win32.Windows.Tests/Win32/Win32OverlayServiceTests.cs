@@ -45,7 +45,7 @@ public sealed class Win32OverlayServiceTests {
         cancellation.Cancel();
 
         Assert.That(
-            async () => await service.GetOverlayIconSource("unused", token: cancellation.Token),
+            async () => await service.GetOverlayIconSource("unused", cancellationToken: cancellation.Token),
             Throws.InstanceOf<OperationCanceledException>());
     }
 
@@ -101,7 +101,7 @@ public sealed class Win32OverlayServiceTests {
             var request = service.GetOverlayIconSource(
                 "unused",
                 attributes: FileAttributes.Normal,
-                token: cancellation.Token);
+                cancellationToken: cancellation.Token);
             using var disposeStarted = new ManualResetEventSlim();
             var disposal = Task.Run(() => {
                 disposeStarted.Set();

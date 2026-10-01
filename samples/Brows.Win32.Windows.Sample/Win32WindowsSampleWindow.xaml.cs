@@ -182,7 +182,7 @@ public partial class Win32WindowsSampleWindow : Window {
 
     private async Task LoadOverlayAsync(string path, int request, CancellationToken token) {
         try {
-            var source = await OverlayService.GetOverlayIconSource(path, token: token);
+            var source = await OverlayService.GetOverlayIconSource(path, cancellationToken: token);
             if (!IsCurrent(request)) {
                 return;
             }

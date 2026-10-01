@@ -94,9 +94,9 @@ public sealed class Win32ThumbnailService : Win32BaseService {
     /// <exception cref="OperationCanceledException">The request was canceled.</exception>
     /// <exception cref="ObjectDisposedException">The service has been disposed.</exception>
     public Task<BitmapSource> GetThumbnailSource(string path,
-                                                  int width,
-                                                  int height,
-                                                  CancellationToken cancellationToken = default) {
+                                                 int width,
+                                                 int height,
+                                                 CancellationToken cancellationToken = default) {
         if (string.IsNullOrEmpty(path)) {
             throw new ArgumentNullException(nameof(path));
         }

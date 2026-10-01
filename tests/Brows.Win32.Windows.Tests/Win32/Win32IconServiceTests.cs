@@ -1,4 +1,4 @@
-using Brows.Threading;
+﻿using Brows.Threading;
 using System;
 using System.Globalization;
 using System.IO;
@@ -52,7 +52,7 @@ public sealed class Win32IconServiceTests {
         var exception = Assert.Throws<ArgumentOutOfRangeException>(() => service.Attempts = value);
 
         using (Assert.EnterMultipleScope()) {
-            Assert.That(exception.ParamName, Is.EqualTo("value"));
+            Assert.That(exception.ParamName, Is.EqualTo(nameof(service.Attempts)));
             Assert.That(service.Attempts, Is.EqualTo(5));
         }
     }
@@ -64,7 +64,7 @@ public sealed class Win32IconServiceTests {
         var exception = Assert.Throws<ArgumentOutOfRangeException>(() => service.AttemptDelay = -1);
 
         using (Assert.EnterMultipleScope()) {
-            Assert.That(exception.ParamName, Is.EqualTo("value"));
+            Assert.That(exception.ParamName, Is.EqualTo(nameof(service.AttemptDelay)));
             Assert.That(service.AttemptDelay, Is.EqualTo(50));
         }
     }

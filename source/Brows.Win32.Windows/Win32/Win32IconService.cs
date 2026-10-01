@@ -6,6 +6,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -29,9 +30,6 @@ public sealed class Win32IconService : Win32BaseService {
 
     private readonly bool ThreadPoolOwned;
     private readonly STAThreadPool ThreadPool;
-
-    private int AttemptCount = 5;
-    private int AttemptDelayMilliseconds = 50;
 
     private async Task<BitmapSource> Attempt<TArg>(TArg arg,
                                                    Func<TArg, CancellationToken, Task<BitmapSource>> task,
@@ -100,7 +98,7 @@ public sealed class Win32IconService : Win32BaseService {
                     var success = user32.DestroyIcon(hIcon);
                     if (success == false) {
                         if (Log.Error()) {
-                            Log.Error(nameof(user32.DestroyIcon));
+                            Log.Error(new Win32Exception(Marshal.GetLastWin32Error()));
                         }
                     }
                 }
@@ -123,7 +121,6 @@ public sealed class Win32IconService : Win32BaseService {
                 var
                 hr = shell32.SHGetStockIconInfo(siid, uFlags, ref psii);
                 hr.ThrowOnError();
-
                 var source = Imaging.CreateBitmapSourceFromHIcon(psii.hIcon,
                                                                  Int32Rect.Empty,
                                                                  BitmapSizeOptions.FromEmptyOptions());
@@ -138,7 +135,7 @@ public sealed class Win32IconService : Win32BaseService {
                     var success = user32.DestroyIcon(hIcon);
                     if (success == false) {
                         if (Log.Error()) {
-                            Log.Error(nameof(user32.DestroyIcon));
+                            Log.Error(new Win32Exception(Marshal.GetLastWin32Error()));
                         }
                     }
                 }
@@ -148,11 +145,12 @@ public sealed class Win32IconService : Win32BaseService {
 
     private static async Task<TResult> WaitForTask<TResult>(Task<TResult> task,
                                                             CancellationToken cancellationToken) {
-        cancellationToken.ThrowIfCancellationRequested();
+        if (cancellationToken.IsCancellationRequested) {
+            cancellationToken.ThrowIfCancellationRequested();
+        }
         if (!cancellationToken.CanBeCanceled || task.IsCompleted) {
             return await task.ConfigureAwait(false);
         }
-
         var canceled = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         using (cancellationToken.Register(() => canceled.TrySetResult(true))) {
             if (task != await Task.WhenAny(task, canceled.Task).ConfigureAwait(false)) {
@@ -221,7 +219,6 @@ public sealed class Win32IconService : Win32BaseService {
                 await removeTask(key, tasks, locker, task).ConfigureAwait(false);
                 return null;
             }
-
             await locker.WaitAsync(CancellationToken.None).ConfigureAwait(false);
             try {
                 if (cache.TryGetValue(key, out var cached)) {
@@ -295,15 +292,15 @@ public sealed class Win32IconService : Win32BaseService {
     /// <remarks>The default is 5 attempts.</remarks>
     /// <exception cref="ArgumentOutOfRangeException">The assigned value is less than one.</exception>
     public int Attempts {
-        get => AttemptCount;
+        get;
         set {
             if (value < 1) {
-                throw new ArgumentOutOfRangeException(nameof(value), value,
+                throw new ArgumentOutOfRangeException(nameof(Attempts), value,
                     "The number of attempts must be at least one.");
             }
-            AttemptCount = value;
+            field = value;
         }
-    }
+    } = 5;
 
     /// <summary>
     /// Gets or sets the delay, in milliseconds, between failed attempts.
@@ -311,15 +308,15 @@ public sealed class Win32IconService : Win32BaseService {
     /// <remarks>The default delay is 50 milliseconds.</remarks>
     /// <exception cref="ArgumentOutOfRangeException">The assigned value is negative.</exception>
     public int AttemptDelay {
-        get => AttemptDelayMilliseconds;
+        get;
         set {
             if (value < 0) {
-                throw new ArgumentOutOfRangeException(nameof(value), value,
+                throw new ArgumentOutOfRangeException(nameof(AttemptDelay), value,
                     "The attempt delay cannot be negative.");
             }
-            AttemptDelayMilliseconds = value;
+            field = value;
         }
-    }
+    } = 50;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="Win32IconService"/> class.
@@ -363,7 +360,9 @@ public sealed class Win32IconService : Win32BaseService {
         }
         BeginOperation();
         try {
-            cancellationToken.ThrowIfCancellationRequested();
+            if (cancellationToken.IsCancellationRequested) {
+                cancellationToken.ThrowIfCancellationRequested();
+            }
             var fileAttributes = attributes.HasValue
                 ? unchecked((uint)attributes.Value)
                 : await GetPathAttributes(path, cancellationToken).ConfigureAwait(false);
@@ -410,7 +409,9 @@ public sealed class Win32IconService : Win32BaseService {
                                                   CancellationToken cancellationToken = default) {
         BeginOperation();
         try {
-            cancellationToken.ThrowIfCancellationRequested();
+            if (cancellationToken.IsCancellationRequested) {
+                cancellationToken.ThrowIfCancellationRequested();
+            }
             return await GetStockIconSource(stockIcon, cancellationToken).ConfigureAwait(false);
         }
         finally {

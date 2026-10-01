@@ -1,4 +1,4 @@
-using Brows.Threading;
+﻿using Brows.Threading;
 using Brows.Win32.InteropServices.ComTypes;
 using Brows.Win32.PlatformInvoke;
 using Domore.Logs;
@@ -27,11 +27,10 @@ public sealed class Win32OverlayService : Win32BaseService {
     private static Task<uint> GetPathAttributes(string path, CancellationToken token) {
         return Task.Run(() => {
             var attributes = kernel32.GetFileAttributesW(path);
-            var error = attributes == kernel32.INVALID_FILE_ATTRIBUTES
-                ? Marshal.GetLastWin32Error()
-                : 0;
-            if (attributes == kernel32.INVALID_FILE_ATTRIBUTES && Log.Debug()) {
-                Log.Debug(new Win32Exception(error));
+            if (attributes == kernel32.INVALID_FILE_ATTRIBUTES) {
+                if (Log.Debug()) {
+                    Log.Debug(new Win32Exception(Marshal.GetLastWin32Error()));
+                }
             }
             return attributes;
         }, token);
@@ -46,7 +45,6 @@ public sealed class Win32OverlayService : Win32BaseService {
                 if (result == IntPtr.Zero) {
                     throw new Win32Exception($"{nameof(shell32.SHGetFileInfoW)} error");
                 }
-
                 var overlayIndex = (int)(unchecked((uint)fileInfo.iIcon) >> 24);
                 if (overlayIndex == 0) {
                     return null;
@@ -54,7 +52,6 @@ public sealed class Win32OverlayService : Win32BaseService {
                 if (OverlayCache.TryGetValue(overlayIndex, out var cached)) {
                     return cached;
                 }
-
                 var source = GetOverlaySource(overlayIndex);
                 return source is null
                     ? null
@@ -68,17 +65,16 @@ public sealed class Win32OverlayService : Win32BaseService {
 
     private static BitmapSource GetOverlaySource(int overlayIndex) {
         var iid = IID.Managed.IImageList;
-        IImageList imageList = null;
-        IntPtr hIcon = default;
+        var hIcon = default(IntPtr);
+        var imageList = default(IImageList);
         try {
-            var hr = shell32.SHGetImageList(shell32.SHIL_SMALL, ref iid, out imageList);
+            var
+            hr = shell32.SHGetImageList(shell32.SHIL_SMALL, ref iid, out imageList);
             hr.ThrowOnError();
-
             hr = imageList.GetOverlayImage(overlayIndex, out var imageIndex);
             hr.ThrowOnError();
             hr = imageList.GetIcon(imageIndex, flags: 0, out hIcon);
             hr.ThrowOnError();
-
             var source = Imaging.CreateBitmapSourceFromHIcon(hIcon,
                                                              Int32Rect.Empty,
                                                              BitmapSizeOptions.FromEmptyOptions());
@@ -104,8 +100,10 @@ public sealed class Win32OverlayService : Win32BaseService {
             return;
         }
         var success = user32.DestroyIcon(hIcon);
-        if (success == false && Log.Error()) {
-            Log.Error(nameof(user32.DestroyIcon));
+        if (success == false) {
+            if (Log.Error()) {
+                Log.Error(new Win32Exception(Marshal.GetLastWin32Error()));
+            }
         }
     }
 
@@ -153,7 +151,7 @@ public sealed class Win32OverlayService : Win32BaseService {
     /// The known file attributes for <paramref name="path"/>. Supply values obtained for that path to avoid an
     /// extra attribute query; if <see langword="null"/>, the service retrieves them from Windows.
     /// </param>
-    /// <param name="token">A token that can be used to cancel the request.</param>
+    /// <param name="cancellationToken">A token that can be used to cancel the request.</param>
     /// <returns>
     /// A task that completes with the effective overlay icon, or <see langword="null"/> if no overlay is
     /// associated with the path.
@@ -163,20 +161,22 @@ public sealed class Win32OverlayService : Win32BaseService {
     /// <exception cref="ArgumentNullException"><paramref name="path"/> is <see langword="null"/> or empty.</exception>
     public async Task<BitmapSource> GetOverlayIconSource(string path,
                                                          FileAttributes? attributes = null,
-                                                         CancellationToken token = default) {
+                                                         CancellationToken cancellationToken = default) {
         if (string.IsNullOrEmpty(path)) {
             throw new ArgumentNullException(nameof(path));
         }
         BeginOperation();
         try {
-            token.ThrowIfCancellationRequested();
+            if (cancellationToken.IsCancellationRequested) {
+                cancellationToken.ThrowIfCancellationRequested();
+            }
             var fileAttributes = attributes.HasValue
                 ? unchecked((uint)attributes.Value)
-                : await GetPathAttributes(path, token).ConfigureAwait(false);
+                : await GetPathAttributes(path, cancellationToken).ConfigureAwait(false);
             if (fileAttributes == kernel32.INVALID_FILE_ATTRIBUTES) {
                 return null;
             }
-            return await GetOverlayIconAttempt(path, token).ConfigureAwait(false);
+            return await GetOverlayIconAttempt(path, cancellationToken).ConfigureAwait(false);
         }
         finally {
             EndOperation();
