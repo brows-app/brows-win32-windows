@@ -97,7 +97,7 @@ internal sealed class Win32WindowsServices : IWin32WindowsServices,
             ThreadPool = variable?.ThreadPool;
             ThreadPoolOwned = false;
             IconAttemptDelay = variable?.IconAttemptDelay ?? IconAttemptDelay;
-            IconAttempts = variable?.IconAttemps ?? IconAttempts;
+            IconAttempts = variable?.IconAttempts ?? IconAttempts;
         }
         return Task.CompletedTask;
     }

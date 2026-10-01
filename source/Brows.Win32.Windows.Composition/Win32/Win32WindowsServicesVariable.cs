@@ -27,7 +27,7 @@ public sealed class Win32WindowsServicesVariable : IExportVariable {
     /// The maximum number of attempts, including the initial attempt, or <see langword="null"/> to use the default
     /// of 5 attempts. The value must be at least 1.
     /// </value>
-    public int? IconAttemps { get; set; }
+    public int? IconAttempts { get; set; }
 
     /// <summary>
     /// Gets or sets the delay, in milliseconds, between failed icon retrieval attempts.
