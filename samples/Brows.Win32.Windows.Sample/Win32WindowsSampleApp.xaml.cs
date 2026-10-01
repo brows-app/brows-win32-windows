@@ -1,20 +1,31 @@
 ﻿using Brows.Composition;
+using Brows.Threading;
 using Brows.Win32;
 using System.Windows;
 
 namespace Brows;
 
 sealed partial class Win32WindowsSampleApp : IImportEnvironment {
+    private readonly STAThreadPool ThreadPool = new(nameof(Win32WindowsSampleApp)) {
+        WorkerCountMax = 4,
+    };
+
     protected sealed override async void OnStartup(StartupEventArgs e) {
         base.OnStartup(e);
-        var imported = await Imports.Init(this, default);
+        var imported = default(IImport);
         try {
+            imported = await Imports.Init(this, default);
             var
             window = MainWindow = imported.Find<Win32WindowsSampleWindow>();
             window.ShowDialog();
         }
         finally {
-            imported.Kill();
+            try {
+                imported?.Kill();
+            }
+            finally {
+                ThreadPool.Empty();
+            }
         }
     }
 
@@ -25,9 +36,7 @@ sealed partial class Win32WindowsSampleApp : IImportEnvironment {
         ],
         variables: () => new([
             new Win32WindowsServicesVariable {
-                ThreadPool= new(nameof(Win32WindowsSampleApp)) {
-                    WorkerCountMax = 4
-                }
+                ThreadPool = ThreadPool,
             }
         ]));
 }

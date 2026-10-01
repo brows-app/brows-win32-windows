@@ -166,6 +166,64 @@ public sealed class Win32WindowsServicesTests {
         }
     }
 
+    [TestCase(0)]
+    [TestCase(-1)]
+    public void Vary_WhenIconAttemptsIsLessThanOne_ThrowsArgumentOutOfRangeException(int attempts) {
+        var implementation = new Win32WindowsServices();
+        var vary = (IExportAndVary<Win32WindowsServicesVariable>)implementation;
+        var kill = (IExportAndKill)implementation;
+
+        try {
+            var exception = Assert.Throws<ArgumentOutOfRangeException>(() => vary.Vary(
+                new Win32WindowsServicesVariable { IconAttempts = attempts }, CancellationToken.None));
+
+            using (Assert.EnterMultipleScope()) {
+                Assert.That(exception.ParamName, Is.EqualTo("variable"));
+                Assert.That(exception.ActualValue, Is.EqualTo(attempts));
+            }
+        }
+        finally {
+            kill.Kill();
+        }
+    }
+
+    [TestCase(-1)]
+    public void Vary_WhenIconAttemptDelayIsNegative_ThrowsArgumentOutOfRangeException(int delay) {
+        var implementation = new Win32WindowsServices();
+        var vary = (IExportAndVary<Win32WindowsServicesVariable>)implementation;
+        var kill = (IExportAndKill)implementation;
+
+        try {
+            var exception = Assert.Throws<ArgumentOutOfRangeException>(() => vary.Vary(
+                new Win32WindowsServicesVariable { IconAttemptDelay = delay }, CancellationToken.None));
+
+            using (Assert.EnterMultipleScope()) {
+                Assert.That(exception.ParamName, Is.EqualTo("variable"));
+                Assert.That(exception.ActualValue, Is.EqualTo(delay));
+            }
+        }
+        finally {
+            kill.Kill();
+        }
+    }
+
+    [Test]
+    public void Vary_WhenRetrySettingsAreAtMinimumAllowedValues_Completes() {
+        var implementation = new Win32WindowsServices();
+        var vary = (IExportAndVary<Win32WindowsServicesVariable>)implementation;
+        var kill = (IExportAndKill)implementation;
+
+        try {
+            Assert.DoesNotThrow(() => vary.Vary(new Win32WindowsServicesVariable {
+                IconAttempts = 1,
+                IconAttemptDelay = 0,
+            }, CancellationToken.None).GetAwaiter().GetResult());
+        }
+        finally {
+            kill.Kill();
+        }
+    }
+
     [Test]
     public async Task Vary_AfterServicesAreCreated_ThrowsInvalidOperationException() {
         var implementation = new Win32WindowsServices();

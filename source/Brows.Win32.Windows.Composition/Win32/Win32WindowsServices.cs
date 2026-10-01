@@ -94,10 +94,20 @@ internal sealed class Win32WindowsServices : IWin32WindowsServices,
             if (LazyServices.IsValueCreated) {
                 throw new InvalidOperationException("The Win32 Windows services have already been created.");
             }
+            var iconAttempts = variable?.IconAttempts;
+            if (iconAttempts < 1) {
+                throw new ArgumentOutOfRangeException(nameof(variable), iconAttempts,
+                    "The number of icon attempts must be at least one.");
+            }
+            var iconAttemptDelay = variable?.IconAttemptDelay;
+            if (iconAttemptDelay < 0) {
+                throw new ArgumentOutOfRangeException(nameof(variable), iconAttemptDelay,
+                    "The icon-attempt delay cannot be negative.");
+            }
             ThreadPool = variable?.ThreadPool;
             ThreadPoolOwned = false;
-            IconAttemptDelay = variable?.IconAttemptDelay ?? IconAttemptDelay;
-            IconAttempts = variable?.IconAttempts ?? IconAttempts;
+            IconAttemptDelay = iconAttemptDelay ?? IconAttemptDelay;
+            IconAttempts = iconAttempts ?? IconAttempts;
         }
         return Task.CompletedTask;
     }
