@@ -1,5 +1,6 @@
 ﻿using Brows.Composition;
 using Brows.Threading;
+using Domore.Logs;
 using System;
 using System.IO;
 using System.Threading.Tasks;
@@ -10,6 +11,8 @@ namespace Brows.Win32;
 internal sealed class Win32WindowsServices : IWin32WindowsServices,
                                              IExportAndVary<Win32WindowsServicesVariable>,
                                              IExportAndKill {
+    private static readonly ILog Log = Logging.For(typeof(Win32WindowsServices));
+
     private readonly Lazy<ServiceWrapper> Services;
 
     private bool ThreadPoolOwned { get; set; }
@@ -17,6 +20,9 @@ internal sealed class Win32WindowsServices : IWin32WindowsServices,
 
     public Win32WindowsServices() {
         Services = new(() => {
+            if (Log.Info()) {
+                Log.Info($"Creating Win32 Windows services with thread pool: {ThreadPool?.Name}");
+            }
             return new(ThreadPool);
         });
     }
@@ -68,9 +74,19 @@ internal sealed class Win32WindowsServices : IWin32WindowsServices,
                 Services.Value.Dispose();
             }
         }
-        finally {
+        catch (Exception ex) {
+            if (Log.Error()) {
+                Log.Error(ex);
+            }
+        }
+        try {
             if (ThreadPoolOwned) {
                 ThreadPool.Empty();
+            }
+        }
+        catch (Exception ex) {
+            if (Log.Error()) {
+                Log.Error(ex);
             }
         }
     }
@@ -90,10 +106,28 @@ internal sealed class Win32WindowsServices : IWin32WindowsServices,
         }
 
         public void Dispose() {
-            using (Icon) {
-                using (Overlay) {
-                    using (Thumbnail) {
-                    }
+            try {
+                Icon.Dispose();
+            }
+            catch (Exception ex) {
+                if (Log.Error()) {
+                    Log.Error(ex);
+                }
+            }
+            try {
+                Overlay.Dispose();
+            }
+            catch (Exception ex) {
+                if (Log.Error()) {
+                    Log.Error(ex);
+                }
+            }
+            try {
+                Thumbnail.Dispose();
+            }
+            catch (Exception ex) {
+                if (Log.Error()) {
+                    Log.Error(ex);
                 }
             }
         }
