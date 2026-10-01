@@ -26,6 +26,8 @@ internal sealed class Win32WindowsServices : IWin32WindowsServices,
     private bool Killed;
     private bool ThreadPoolOwned { get; set; }
     private STAThreadPool ThreadPool { get; set; }
+    private int IconAttempts { get; set; } = Win32IconService.AttemptsDefault;
+    private int IconAttemptDelay { get; set; } = Win32IconService.AttemptDelayDefault;
 
     private ServiceWrapper Services {
         get {
@@ -52,7 +54,7 @@ internal sealed class Win32WindowsServices : IWin32WindowsServices,
             if (Log.Info()) {
                 Log.Info($"Creating Win32 Windows services with thread pool: {ThreadPool.Name}");
             }
-            return new(ThreadPool);
+            return new(ThreadPool, iconAttempts: IconAttempts, iconAttemptDelay: IconAttemptDelay);
         });
     }
 
@@ -94,6 +96,8 @@ internal sealed class Win32WindowsServices : IWin32WindowsServices,
             }
             ThreadPool = variable?.ThreadPool;
             ThreadPoolOwned = false;
+            IconAttemptDelay = variable?.IconAttemptDelay ?? IconAttemptDelay;
+            IconAttempts = variable?.IconAttemps ?? IconAttempts;
         }
         return Task.CompletedTask;
     }
@@ -138,11 +142,16 @@ internal sealed class Win32WindowsServices : IWin32WindowsServices,
 
         public STAThreadPool ThreadPool { get; }
 
-        public ServiceWrapper(STAThreadPool threadPool) {
+        public ServiceWrapper(STAThreadPool threadPool, int iconAttempts, int iconAttemptDelay) {
             ThreadPool = threadPool;
-            Icon = new(ThreadPool);
-            Overlay = new(ThreadPool);
-            Thumbnail = new(ThreadPool);
+            Icon = new(ThreadPool) {
+                AttemptDelay = iconAttemptDelay,
+                Attempts = iconAttempts,
+            };
+            Overlay = new(ThreadPool) {
+            };
+            Thumbnail = new(ThreadPool) {
+            };
         }
 
         public void Dispose() {

@@ -65,7 +65,7 @@ public sealed class Win32IconServiceTests {
 
         using (Assert.EnterMultipleScope()) {
             Assert.That(exception.ParamName, Is.EqualTo(nameof(service.AttemptDelay)));
-            Assert.That(service.AttemptDelay, Is.EqualTo(50));
+            Assert.That(service.AttemptDelay, Is.EqualTo(100));
         }
     }
 
