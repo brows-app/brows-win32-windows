@@ -25,6 +25,8 @@
     <File Path="tests/Directory.Build.props" />
   </Folder>
   <Project Path="samples/Brows.Win32.Windows.Sample/Brows.Win32.Windows.Sample.csproj" />
+  <Project Path="source/Brows.Win32.Windows.Composition/Brows.Win32.Windows.Composition.csproj" />
   <Project Path="source/Brows.Win32.Windows/Brows.Win32.Windows.csproj" />
+  <Project Path="tests/Brows.Win32.Windows.Composition.Tests/Brows.Win32.Windows.Composition.Tests.csproj" />
   <Project Path="tests/Brows.Win32.Windows.Tests/Brows.Win32.Windows.Tests.csproj" />
 </Solution>
