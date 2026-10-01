@@ -286,6 +286,9 @@ public sealed class Win32IconService : Win32BaseService {
         @try(ExtensionLock.Dispose);
     }
 
+    internal const int AttemptDelayDefault = 100;
+    internal const int AttemptsDefault = 5;
+
     /// <summary>
     /// Gets or sets the maximum number of attempts for an icon retrieval.
     /// </summary>
@@ -300,12 +303,12 @@ public sealed class Win32IconService : Win32BaseService {
             }
             field = value;
         }
-    } = 5;
+    } = AttemptsDefault;
 
     /// <summary>
     /// Gets or sets the delay, in milliseconds, between failed attempts.
     /// </summary>
-    /// <remarks>The default delay is 50 milliseconds.</remarks>
+    /// <remarks>The default delay is 100 milliseconds.</remarks>
     /// <exception cref="ArgumentOutOfRangeException">The assigned value is negative.</exception>
     public int AttemptDelay {
         get;
@@ -316,7 +319,7 @@ public sealed class Win32IconService : Win32BaseService {
             }
             field = value;
         }
-    } = 50;
+    } = AttemptDelayDefault;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="Win32IconService"/> class.

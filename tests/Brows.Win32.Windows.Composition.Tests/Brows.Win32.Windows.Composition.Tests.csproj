@@ -1,11 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <OutputType>WinExe</OutputType>
-    <UseWPF>true</UseWPF>
   </PropertyGroup>
-  <ItemGroup>
-    <ApplicationDefinition Include="Win32WindowsSampleApp.xaml" />
-  </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\source\Brows.Win32.Windows.Composition\Brows.Win32.Windows.Composition.csproj" />
   </ItemGroup>

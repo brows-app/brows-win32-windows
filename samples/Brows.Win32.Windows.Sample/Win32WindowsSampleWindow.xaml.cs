@@ -1,4 +1,5 @@
-﻿using Brows.Win32;
+﻿using Brows.Composition;
+using Brows.Win32;
 using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
@@ -12,10 +13,10 @@ using System.Windows.Input;
 
 namespace Brows;
 
-public partial class Win32WindowsSampleWindow : Window {
-    private readonly Win32IconService IconService = new(threadPool: null);
-    private readonly Win32OverlayService OverlayService = new();
-    private readonly Win32ThumbnailService ThumbnailService = new();
+sealed partial class Win32WindowsSampleWindow : Window, IExport {
+    [ImportRequired]
+    internal IWin32WindowsServices Services { get; set; }
+
     private readonly HashSet<Task> PreviewLoads = [];
 
     private CancellationTokenSource PreviewCancellation;
@@ -51,27 +52,9 @@ public partial class Win32WindowsSampleWindow : Window {
         catch (Exception ex) {
             Debug.WriteLine(ex);
         }
-        try {
-            await Task.Run(() => {
-                try {
-                    ThumbnailService.Dispose();
-                }
-                finally {
-                    try {
-                        OverlayService.Dispose();
-                    }
-                    finally {
-                        IconService.Dispose();
-                    }
-                }
-            });
-        }
-        catch (Exception ex) {
-            Debug.WriteLine(ex);
-        }
         finally {
-            ShutdownComplete = true;
-            Close();
+            _ = ShutdownComplete = true;
+            _ = Dispatcher.BeginInvoke(Close);
         }
     }
 
@@ -182,7 +165,7 @@ public partial class Win32WindowsSampleWindow : Window {
 
     private async Task LoadOverlayAsync(string path, int request, CancellationToken token) {
         try {
-            var source = await OverlayService.GetOverlayIconSource(path, cancellationToken: token);
+            var source = await Services.GetOverlayIconSource(path, cancellationToken: token);
             if (!IsCurrent(request)) {
                 return;
             }
@@ -205,7 +188,7 @@ public partial class Win32WindowsSampleWindow : Window {
 
     private async Task LoadThumbnailAsync(string path, int request, CancellationToken token) {
         try {
-            var source = await ThumbnailService.GetThumbnailSource(path, 320, 240, token);
+            var source = await Services.GetThumbnailSource(path, 320, 240, token);
             if (!IsCurrent(request)) {
                 return;
             }
@@ -228,7 +211,7 @@ public partial class Win32WindowsSampleWindow : Window {
 
     private async Task LoadIconAsync(string path, int request, CancellationToken token) {
         try {
-            var source = await IconService.GetIconSource(path, cancellationToken: token);
+            var source = await Services.GetIconSource(path, cancellationToken: token);
             if (!IsCurrent(request)) {
                 return;
             }

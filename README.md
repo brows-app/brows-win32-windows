@@ -30,6 +30,8 @@ To consume the source from this repository, add a project reference:
 <ProjectReference Include="path/to/source/Brows.Win32.Windows/Brows.Win32.Windows.csproj" />
 ```
 
+`Brows.Win32.Windows.Composition` is a companion NuGet package for applications using `Brows.Composition`. It exports `IWin32WindowsServices`, which forwards icon, overlay, and thumbnail requests to the services in this library. The optional `Win32WindowsServicesVariable` supplies a caller-owned STA thread pool; otherwise the export creates a shared pool when first used. See the [Composition package README](source/Brows.Win32.Windows.Composition/README.md) for lifecycle details.
+
 ## Usage
 
 The services expose `Task`-based APIs. Await them instead of synchronously blocking a WPF dispatcher with `.Wait()` or `.Result`.
