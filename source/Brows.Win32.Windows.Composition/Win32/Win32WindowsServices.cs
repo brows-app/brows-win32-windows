@@ -3,6 +3,7 @@ using Brows.Threading;
 using Domore.Logs;
 using System;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Media.Imaging;
 
@@ -13,15 +14,43 @@ internal sealed class Win32WindowsServices : IWin32WindowsServices,
                                              IExportAndKill {
     private static readonly ILog Log = Logging.For(typeof(Win32WindowsServices));
 
-    private readonly Lazy<ServiceWrapper> Services;
+    private readonly Lazy<ServiceWrapper> LazyServices;
+    private readonly
+#if NET9_0_OR_GREATER
+        Lock
+#else
+        object
+#endif
+        Locker = new();
 
+    private bool Killed;
     private bool ThreadPoolOwned { get; set; }
     private STAThreadPool ThreadPool { get; set; }
 
+    private ServiceWrapper Services {
+        get {
+            lock (Locker) {
+                if (Killed) {
+                    throw new InvalidOperationException("The Win32 Windows services have already been killed.");
+                }
+                return LazyServices.Value;
+            }
+        }
+    }
+
     public Win32WindowsServices() {
-        Services = new(() => {
+        LazyServices = new(() => {
+            if (ThreadPool is null) {
+                ThreadPool = new STAThreadPool(nameof(Win32WindowsServices)) {
+                    IdleTime = TimeSpan.FromMinutes(2),
+                    TryWorkDelay = 10,
+                    WorkerCountMax = Environment.ProcessorCount,
+                    WorkerCountMin = 1,
+                };
+                ThreadPoolOwned = true;
+            }
             if (Log.Info()) {
-                Log.Info($"Creating Win32 Windows services with thread pool: {ThreadPool?.Name}");
+                Log.Info($"Creating Win32 Windows services with thread pool: {ThreadPool.Name}");
             }
             return new(ThreadPool);
         });
@@ -30,25 +59,25 @@ internal sealed class Win32WindowsServices : IWin32WindowsServices,
     Task<BitmapSource> IWin32WindowsServices.GetIconSource(string path,
                                                            FileAttributes? attributes,
                                                            CancellationToken cancellationToken) {
-        return Services.Value.Icon.GetIconSource(path, attributes, cancellationToken);
+        return Services.Icon.GetIconSource(path, attributes, cancellationToken);
     }
 
     Task<BitmapSource> IWin32WindowsServices.GetIconSource(Win32StockIcon stockIcon,
                                                            CancellationToken cancellationToken) {
-        return Services.Value.Icon.GetIconSource(stockIcon, cancellationToken);
+        return Services.Icon.GetIconSource(stockIcon, cancellationToken);
     }
 
     Task<BitmapSource> IWin32WindowsServices.GetOverlayIconSource(string path,
                                                                   FileAttributes? attributes,
                                                                   CancellationToken cancellationToken) {
-        return Services.Value.Overlay.GetOverlayIconSource(path, attributes, cancellationToken);
+        return Services.Overlay.GetOverlayIconSource(path, attributes, cancellationToken);
     }
 
     Task<BitmapSource> IWin32WindowsServices.GetThumbnailSource(string path,
                                                                 int width,
                                                                 int height,
                                                                 CancellationToken cancellationToken) {
-        return Services.Value.Thumbnail.GetThumbnailSource(path, width, height, cancellationToken);
+        return Services.Thumbnail.GetThumbnailSource(path, width, height, cancellationToken);
     }
 
     Task IExportAndVary<Win32WindowsServicesVariable>.Vary(Win32WindowsServicesVariable variable,
@@ -56,23 +85,34 @@ internal sealed class Win32WindowsServices : IWin32WindowsServices,
         if (cancellationToken.IsCancellationRequested) {
             return Task.FromCanceled(cancellationToken);
         }
-        var
-        threadPool = variable?.ThreadPool;
-        ThreadPool = threadPool ?? new(nameof(Win32WindowsServices)) {
-            IdleTime = TimeSpan.FromMinutes(2),
-            TryWorkDelay = 10,
-            WorkerCountMax = Environment.ProcessorCount,
-            WorkerCountMin = 1,
-        };
-        ThreadPoolOwned = threadPool is null;
+        lock (Locker) {
+            if (Killed) {
+                throw new InvalidOperationException("The Win32 Windows services have already been killed.");
+            }
+            if (LazyServices.IsValueCreated) {
+                throw new InvalidOperationException("The Win32 Windows services have already been created.");
+            }
+            ThreadPool = variable?.ThreadPool;
+            ThreadPoolOwned = false;
+        }
         return Task.CompletedTask;
     }
 
     void IExportAndKill.Kill() {
-        try {
-            if (Services.IsValueCreated) {
-                Services.Value.Dispose();
+        ServiceWrapper services;
+        STAThreadPool threadPool;
+        bool threadPoolOwned;
+        lock (Locker) {
+            if (Killed) {
+                return;
             }
+            Killed = true;
+            services = LazyServices.IsValueCreated ? LazyServices.Value : null;
+            threadPool = ThreadPool;
+            threadPoolOwned = ThreadPoolOwned;
+        }
+        try {
+            services?.Dispose();
         }
         catch (Exception ex) {
             if (Log.Error()) {
@@ -80,8 +120,8 @@ internal sealed class Win32WindowsServices : IWin32WindowsServices,
             }
         }
         try {
-            if (ThreadPoolOwned) {
-                ThreadPool.Empty();
+            if (threadPoolOwned) {
+                threadPool.Empty();
             }
         }
         catch (Exception ex) {

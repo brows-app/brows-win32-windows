@@ -1,6 +1,4 @@
 ﻿<Application x:Class="Brows.Win32WindowsSampleApp"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             ShutdownMode="OnMainWindowClose"
-             StartupUri="Win32WindowsSampleWindow.xaml">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 </Application>
