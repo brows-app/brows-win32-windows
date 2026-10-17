@@ -135,7 +135,7 @@ internal sealed class Win32WindowsServices : IWin32WindowsServices,
         }
         try {
             if (threadPoolOwned) {
-                threadPool.Empty();
+                ((ISTAThreadPool)threadPool).Empty();
             }
         }
         catch (Exception ex) {

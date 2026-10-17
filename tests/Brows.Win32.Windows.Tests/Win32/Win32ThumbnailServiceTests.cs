@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Brows.Threading;
@@ -7,10 +7,29 @@ namespace Brows.Win32;
 
 [TestFixture]
 public sealed class Win32ThumbnailServiceTests {
+    private ISTAThreadPool ThreadPool;
+
+    [SetUp]
+    public void SetUp() {
+        ThreadPool = new STAThreadPool(TestContext.CurrentContext.Test.Name);
+    }
+
+    [TearDown]
+    public void TearDown() {
+        ThreadPool.Empty();
+    }
+
+    [Test]
+    public void Constructor_WhenThreadPoolIsNull_ThrowsArgumentNullException() {
+        var exception = Assert.Throws<ArgumentNullException>(() => new Win32ThumbnailService(null));
+
+        Assert.That(exception.ParamName, Is.EqualTo("threadPool"));
+    }
+
     [TestCase(null)]
     [TestCase("")]
     public void GetThumbnailSource_WhenPathIsNullOrEmpty_ThrowsArgumentNullException(string path) {
-        using var service = new Win32ThumbnailService();
+        using var service = new Win32ThumbnailService(ThreadPool);
 
         var exception = Assert.Throws<ArgumentNullException>(
             () => service.GetThumbnailSource(path, width: 1, height: 1));
@@ -21,7 +40,7 @@ public sealed class Win32ThumbnailServiceTests {
     [TestCase(0)]
     [TestCase(-1)]
     public void GetThumbnailSource_WhenWidthIsNotPositive_ThrowsArgumentOutOfRangeException(int width) {
-        using var service = new Win32ThumbnailService();
+        using var service = new Win32ThumbnailService(ThreadPool);
 
         var exception = Assert.Throws<ArgumentOutOfRangeException>(
             () => service.GetThumbnailSource("unused", width: width, height: 1));
@@ -32,7 +51,7 @@ public sealed class Win32ThumbnailServiceTests {
     [TestCase(0)]
     [TestCase(-1)]
     public void GetThumbnailSource_WhenHeightIsNotPositive_ThrowsArgumentOutOfRangeException(int height) {
-        using var service = new Win32ThumbnailService();
+        using var service = new Win32ThumbnailService(ThreadPool);
 
         var exception = Assert.Throws<ArgumentOutOfRangeException>(
             () => service.GetThumbnailSource("unused", width: 1, height: height));
@@ -42,7 +61,7 @@ public sealed class Win32ThumbnailServiceTests {
 
     [Test]
     public void GetThumbnailSource_WhenTokenIsAlreadyCanceled_CancelsBeforeShellWork() {
-        using var service = new Win32ThumbnailService();
+        using var service = new Win32ThumbnailService(ThreadPool);
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
 
@@ -57,7 +76,7 @@ public sealed class Win32ThumbnailServiceTests {
 
     [Test]
     public void Dispose_CanBeCalledMoreThanOnce() {
-        var service = new Win32ThumbnailService();
+        var service = new Win32ThumbnailService(ThreadPool);
 
         Assert.DoesNotThrow(service.Dispose);
         Assert.DoesNotThrow(service.Dispose);
@@ -65,7 +84,7 @@ public sealed class Win32ThumbnailServiceTests {
 
     [Test]
     public void GetThumbnailSource_AfterDispose_ThrowsObjectDisposedException() {
-        var service = new Win32ThumbnailService();
+        var service = new Win32ThumbnailService(ThreadPool);
         service.Dispose();
 
         var exception = Assert.Throws<ObjectDisposedException>(() =>
@@ -76,7 +95,7 @@ public sealed class Win32ThumbnailServiceTests {
 
     [Test]
     public async Task GetThumbnailSource_WhenPathExists_ReturnsFrozenSource() {
-        using var service = new Win32ThumbnailService();
+        using var service = new Win32ThumbnailService(ThreadPool);
         var path = typeof(Win32ThumbnailServiceTests).Assembly.Location;
 
         var source = await service.GetThumbnailSource(path, width: 32, height: 32);
@@ -90,18 +109,18 @@ public sealed class Win32ThumbnailServiceTests {
     }
 
     [Test]
-    public async Task Dispose_DoesNotEmptyBorrowedThreadPool() {
-        var pool = new STAThreadPool(nameof(Dispose_DoesNotEmptyBorrowedThreadPool)) {
+    public async Task Dispose_DoesNotEmptySuppliedThreadPool() {
+        ISTAThreadPool pool = new STAThreadPool(nameof(Dispose_DoesNotEmptySuppliedThreadPool)) {
             WorkerCountMax = 1,
         };
         try {
-            var workerBefore = await pool.Work(nameof(Dispose_DoesNotEmptyBorrowedThreadPool),
+            var workerBefore = await pool.Work(nameof(Dispose_DoesNotEmptySuppliedThreadPool),
                 () => Thread.CurrentThread.ManagedThreadId, CancellationToken.None);
 
             using (var service = new Win32ThumbnailService(pool)) {
             }
 
-            var workerAfter = await pool.Work(nameof(Dispose_DoesNotEmptyBorrowedThreadPool),
+            var workerAfter = await pool.Work(nameof(Dispose_DoesNotEmptySuppliedThreadPool),
                 () => Thread.CurrentThread.ManagedThreadId, CancellationToken.None);
 
             Assert.That(workerAfter, Is.EqualTo(workerBefore));
@@ -113,7 +132,7 @@ public sealed class Win32ThumbnailServiceTests {
 
     [Test]
     public async Task Dispose_WaitsForAnActiveRequest() {
-        var pool = new STAThreadPool(nameof(Dispose_WaitsForAnActiveRequest)) {
+        ISTAThreadPool pool = new STAThreadPool(nameof(Dispose_WaitsForAnActiveRequest)) {
             WorkerCountMax = 1,
         };
         using var workerStarted = new ManualResetEventSlim();

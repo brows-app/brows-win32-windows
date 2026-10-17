@@ -28,8 +28,7 @@ public sealed class Win32IconService : Win32BaseService {
     private readonly Dictionary<Win32StockIcon, Task<BitmapSource>> StockTasks = [];
     private readonly ConcurrentDictionary<Win32StockIcon, BitmapSource> StockCache = [];
 
-    private readonly bool ThreadPoolOwned;
-    private readonly STAThreadPool ThreadPool;
+    private readonly ISTAThreadPool ThreadPool;
 
     private async Task<BitmapSource> Attempt<TArg>(TArg arg,
                                                    Func<TArg, CancellationToken, Task<BitmapSource>> task,
@@ -273,11 +272,6 @@ public sealed class Win32IconService : Win32BaseService {
                 }
             }
         }
-        @try(() => {
-            if (ThreadPoolOwned) {
-                ThreadPool.Empty();
-            }
-        });
         @try(StockCache.Clear);
         @try(StockTasks.Clear);
         @try(StockLock.Dispose);
@@ -327,13 +321,8 @@ public sealed class Win32IconService : Win32BaseService {
     /// <param name="threadPool">
     /// The STA thread pool to use. If <see langword="null"/>, the service creates and owns a pool.
     /// </param>
-    public Win32IconService(STAThreadPool threadPool = null) {
-        ThreadPool = threadPool ?? new(nameof(Win32IconService)) {
-            TryWorkDelay = 10,
-            WorkerCountMax = Environment.ProcessorCount,
-            WorkerCountMin = 1,
-        };
-        ThreadPoolOwned = threadPool is null;
+    public Win32IconService(ISTAThreadPool threadPool = null) {
+        ThreadPool = threadPool ?? throw new ArgumentNullException(nameof(threadPool));
     }
 
     /// <summary>

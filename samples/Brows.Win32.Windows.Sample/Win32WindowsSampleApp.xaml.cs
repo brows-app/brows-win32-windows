@@ -24,7 +24,7 @@ sealed partial class Win32WindowsSampleApp : IImportEnvironment {
                 imported?.Kill();
             }
             finally {
-                ThreadPool.Empty();
+                ((ISTAThreadPool)ThreadPool).Empty();
             }
         }
     }

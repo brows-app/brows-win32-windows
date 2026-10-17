@@ -34,7 +34,7 @@ public sealed class Win32WindowsServicesTests {
     public async Task GetIconSource_WhenPathIsNullOrEmpty_ThrowsArgumentNullException(string path) {
         var implementation = new Win32WindowsServices();
         try {
-            var exception = Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            var exception = await Assert.ThrowsAsync<ArgumentNullException>(async () =>
                 await ((IWin32WindowsServices)implementation).GetIconSource(path));
 
             Assert.That(exception.ParamName, Is.EqualTo("path"));
@@ -49,7 +49,7 @@ public sealed class Win32WindowsServicesTests {
     public async Task GetOverlayIconSource_WhenPathIsNullOrEmpty_ThrowsArgumentNullException(string path) {
         var implementation = new Win32WindowsServices();
         try {
-            var exception = Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            var exception = await Assert.ThrowsAsync<ArgumentNullException>(async () =>
                 await ((IWin32WindowsServices)implementation).GetOverlayIconSource(path));
 
             Assert.That(exception.ParamName, Is.EqualTo("path"));
@@ -64,7 +64,7 @@ public sealed class Win32WindowsServicesTests {
     public async Task GetThumbnailSource_WhenPathIsNullOrEmpty_ThrowsArgumentNullException(string path) {
         var implementation = new Win32WindowsServices();
         try {
-            var exception = Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            var exception = await Assert.ThrowsAsync<ArgumentNullException>(async () =>
                 await ((IWin32WindowsServices)implementation).GetThumbnailSource(path, width: 1, height: 1));
 
             Assert.That(exception.ParamName, Is.EqualTo("path"));
@@ -79,7 +79,7 @@ public sealed class Win32WindowsServicesTests {
     public async Task GetThumbnailSource_WhenWidthIsNotPositive_ThrowsArgumentOutOfRangeException(int width) {
         var implementation = new Win32WindowsServices();
         try {
-            var exception = Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+            var exception = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
                 await ((IWin32WindowsServices)implementation).GetThumbnailSource("unused", width, height: 1));
 
             Assert.That(exception.ParamName, Is.EqualTo("width"));
@@ -94,7 +94,7 @@ public sealed class Win32WindowsServicesTests {
     public async Task GetThumbnailSource_WhenHeightIsNotPositive_ThrowsArgumentOutOfRangeException(int height) {
         var implementation = new Win32WindowsServices();
         try {
-            var exception = Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+            var exception = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
                 await ((IWin32WindowsServices)implementation).GetThumbnailSource("unused", width: 1, height));
 
             Assert.That(exception.ParamName, Is.EqualTo("height"));
@@ -142,7 +142,7 @@ public sealed class Win32WindowsServicesTests {
 
         try {
             await vary.Vary(new Win32WindowsServicesVariable { ThreadPool = pool }, CancellationToken.None);
-            var workerBefore = await pool.Work(nameof(GetIconSource_UsesExportAndKeepsBorrowedThreadPoolAliveAfterKill),
+            var workerBefore = await ((ISTAThreadPool)pool).Work(nameof(GetIconSource_UsesExportAndKeepsBorrowedThreadPoolAliveAfterKill),
                 () => Thread.CurrentThread.ManagedThreadId, CancellationToken.None);
 
             var source = await ((IWin32WindowsServices)implementation).GetIconSource(Win32StockIcon.Folder);
@@ -155,14 +155,14 @@ public sealed class Win32WindowsServicesTests {
             kill.Kill();
             kill.Kill();
 
-            var workerAfter = await pool.Work(nameof(GetIconSource_UsesExportAndKeepsBorrowedThreadPoolAliveAfterKill),
+            var workerAfter = await ((ISTAThreadPool)pool).Work(nameof(GetIconSource_UsesExportAndKeepsBorrowedThreadPoolAliveAfterKill),
                 () => Thread.CurrentThread.ManagedThreadId, CancellationToken.None);
 
             Assert.That(workerAfter, Is.EqualTo(workerBefore));
         }
         finally {
             kill.Kill();
-            pool.Empty();
+            ((ISTAThreadPool)pool).Empty();
         }
     }
 

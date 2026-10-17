@@ -21,8 +21,7 @@ public sealed class Win32OverlayService : Win32BaseService {
     private static readonly ILog Log = Logging.For(typeof(Win32OverlayService));
 
     private readonly ConcurrentDictionary<int, BitmapSource> OverlayCache = [];
-    private readonly bool ThreadPoolOwned;
-    private readonly STAThreadPool ThreadPool;
+    private readonly ISTAThreadPool ThreadPool;
 
     private static Task<uint> GetPathAttributes(string path, CancellationToken token) {
         return Task.Run(() => {
@@ -116,16 +115,6 @@ public sealed class Win32OverlayService : Win32BaseService {
                 Log.Warn(ex);
             }
         }
-        try {
-            if (ThreadPoolOwned) {
-                ThreadPool.Empty();
-            }
-        }
-        catch (Exception ex) {
-            if (Log.Warn()) {
-                Log.Warn(ex);
-            }
-        }
     }
 
     /// <summary>
@@ -134,13 +123,8 @@ public sealed class Win32OverlayService : Win32BaseService {
     /// <param name="threadPool">
     /// The optional STA thread pool to use for overlay requests. If omitted, the service creates a pool.
     /// </param>
-    public Win32OverlayService(STAThreadPool threadPool = null) {
-        ThreadPool = threadPool ?? new(nameof(Win32OverlayService)) {
-            TryWorkDelay = 10,
-            WorkerCountMax = Environment.ProcessorCount,
-            WorkerCountMin = 1,
-        };
-        ThreadPoolOwned = threadPool is null;
+    public Win32OverlayService(ISTAThreadPool threadPool) {
+        ThreadPool = threadPool ?? throw new ArgumentNullException(nameof(threadPool));
     }
 
     /// <summary>

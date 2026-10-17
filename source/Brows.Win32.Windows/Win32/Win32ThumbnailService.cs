@@ -1,8 +1,6 @@
 ﻿using Brows.Threading;
 using Brows.Win32.InteropServices;
 using Brows.Win32.PlatformInvoke;
-using Domore.Logs;
-using System;
 using System.Threading.Tasks;
 using System.Windows.Media.Imaging;
 
@@ -12,10 +10,7 @@ namespace Brows.Win32;
 /// Provides thumbnail or icon images for file and folder paths.
 /// </summary>
 public sealed class Win32ThumbnailService : Win32BaseService {
-    private static readonly ILog Log = Logging.For(typeof(Win32ThumbnailService));
-
-    private readonly bool ThreadPoolOwned;
-    private readonly STAThreadPool ThreadPool;
+    private readonly ISTAThreadPool ThreadPool;
 
     private static BitmapSource GetThumbnailSource(string path, int width, int height) {
         using (var wrapper = new ShellItemImageFactoryWrapper(path)) {
@@ -51,16 +46,6 @@ public sealed class Win32ThumbnailService : Win32BaseService {
     }
 
     private protected sealed override void DisposeCore() {
-        try {
-            if (ThreadPoolOwned) {
-                ThreadPool.Empty();
-            }
-        }
-        catch (Exception ex) {
-            if (Log.Warn()) {
-                Log.Warn(ex);
-            }
-        }
     }
 
     /// <summary>
@@ -69,12 +54,8 @@ public sealed class Win32ThumbnailService : Win32BaseService {
     /// <param name="threadPool">
     /// The optional STA thread pool to use for thumbnail requests. If omitted, the service creates a pool.
     /// </param>
-    public Win32ThumbnailService(STAThreadPool threadPool = null) {
-        ThreadPool = threadPool ?? new(nameof(Win32ThumbnailService)) {
-            TryWorkDelay = 10,
-            WorkerCountMax = Environment.ProcessorCount,
-        };
-        ThreadPoolOwned = threadPool is null;
+    public Win32ThumbnailService(ISTAThreadPool threadPool) {
+        ThreadPool = threadPool ?? throw new ArgumentNullException(nameof(threadPool));
     }
 
     /// <summary>
