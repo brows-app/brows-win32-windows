@@ -316,9 +316,9 @@ code more complicated, such as when the field must be `volatile`.
 - Inject a non-null `Brows.Threading.ISTAThreadPool` into each preview service.
   The caller owns that pool; disposing an individual service must not empty it.
   `STAThreadPool.Work` and `Empty` are explicit interface implementations, so
-  call them through an `ISTAThreadPool` reference or cast. Some existing README
-  text and constructor comments still describe service-created pools; use the
-  current implementation and tests to establish the contract.
+  call them through an `ISTAThreadPool` reference or cast. Empty a caller-owned
+  pool only after its services have been disposed and other pool users have
+  finished.
 - Keep Shell COM and image retrieval work on the supplied STA pool. Preserve
   freezing of WPF `BitmapSource` results before sharing them across threads.
 - Preserve native resource ownership: release owned icon handles with

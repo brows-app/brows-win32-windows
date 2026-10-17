@@ -121,8 +121,15 @@ public sealed class Win32OverlayService : Win32BaseService {
     /// Initializes a new instance of the <see cref="Win32OverlayService"/> class.
     /// </summary>
     /// <param name="threadPool">
-    /// The optional STA thread pool to use for overlay requests. If omitted, the service creates a pool.
+    /// The non-null, caller-owned STA thread pool to use for overlay requests.
     /// </param>
+    /// <remarks>
+    /// Disposing this service does not empty the pool. The caller must empty it after all services using it
+    /// have been disposed and other pool users have finished.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="threadPool"/> is <see langword="null"/>.
+    /// </exception>
     public Win32OverlayService(ISTAThreadPool threadPool) {
         ThreadPool = threadPool ?? throw new ArgumentNullException(nameof(threadPool));
     }
@@ -138,11 +145,17 @@ public sealed class Win32OverlayService : Win32BaseService {
     /// <param name="cancellationToken">A token that can be used to cancel the request.</param>
     /// <returns>
     /// A task that completes with the effective overlay icon, or <see langword="null"/> if no overlay is
-    /// associated with the path.
+    /// associated with the path or its attributes cannot be retrieved from Windows.
     /// </returns>
     /// <exception cref="ObjectDisposedException">The service has been disposed.</exception>
     /// <exception cref="OperationCanceledException">The request was canceled.</exception>
     /// <exception cref="ArgumentNullException"><paramref name="path"/> is <see langword="null"/> or empty.</exception>
+    /// <exception cref="Win32Exception">
+    /// A Windows Shell icon lookup fails.
+    /// </exception>
+    /// <exception cref="COMException">
+    /// A Windows Shell image list call fails.
+    /// </exception>
     public async Task<BitmapSource> GetOverlayIconSource(string path,
                                                          FileAttributes? attributes = null,
                                                          CancellationToken cancellationToken = default) {

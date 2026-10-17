@@ -67,7 +67,8 @@ public interface IWin32WindowsServices : IExport {
     /// <param name="cancellationToken">A token that can be used to cancel the request.</param>
     /// <returns>
     /// A task that completes with the effective overlay icon selected by the Windows Shell, or
-    /// <see langword="null"/> if the Shell does not assign an overlay to the path.
+    /// <see langword="null"/> if the Shell does not assign an overlay to the path or its attributes cannot be
+    /// retrieved from Windows.
     /// </returns>
     /// <exception cref="ArgumentNullException"><paramref name="path"/> is <see langword="null"/> or empty.</exception>
     /// <exception cref="OperationCanceledException">The request was canceled.</exception>

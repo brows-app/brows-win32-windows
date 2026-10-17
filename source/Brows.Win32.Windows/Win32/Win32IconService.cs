@@ -16,7 +16,7 @@ using System.Windows.Media.Imaging;
 namespace Brows.Win32;
 
 /// <summary>
-/// Retrieves file and Windows stock icons as frozen WPF bitmap sources.
+/// Retrieves file and Windows stock icons as WPF bitmap sources, frozen when WPF permits it.
 /// </summary>
 public sealed class Win32IconService : Win32BaseService {
     private static readonly ILog Log = Logging.For(typeof(Win32IconService));
@@ -319,9 +319,16 @@ public sealed class Win32IconService : Win32BaseService {
     /// Initializes a new instance of the <see cref="Win32IconService"/> class.
     /// </summary>
     /// <param name="threadPool">
-    /// The STA thread pool to use. If <see langword="null"/>, the service creates and owns a pool.
+    /// The non-null, caller-owned STA thread pool to use for icon requests.
     /// </param>
-    public Win32IconService(ISTAThreadPool threadPool = null) {
+    /// <remarks>
+    /// Disposing this service does not empty the pool. The caller must empty it after all services using it
+    /// have been disposed and other pool users have finished.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="threadPool"/> is <see langword="null"/>.
+    /// </exception>
+    public Win32IconService(ISTAThreadPool threadPool) {
         ThreadPool = threadPool ?? throw new ArgumentNullException(nameof(threadPool));
     }
 

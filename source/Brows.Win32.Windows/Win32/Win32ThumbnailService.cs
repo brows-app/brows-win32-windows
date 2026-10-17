@@ -1,6 +1,7 @@
 ﻿using Brows.Threading;
 using Brows.Win32.InteropServices;
 using Brows.Win32.PlatformInvoke;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows.Media.Imaging;
 
@@ -52,8 +53,15 @@ public sealed class Win32ThumbnailService : Win32BaseService {
     /// Initializes a new instance of the <see cref="Win32ThumbnailService"/> class.
     /// </summary>
     /// <param name="threadPool">
-    /// The optional STA thread pool to use for thumbnail requests. If omitted, the service creates a pool.
+    /// The non-null, caller-owned STA thread pool to use for thumbnail requests.
     /// </param>
+    /// <remarks>
+    /// Disposing this service does not empty the pool. The caller must empty it after all services using it
+    /// have been disposed and other pool users have finished.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="threadPool"/> is <see langword="null"/>.
+    /// </exception>
     public Win32ThumbnailService(ISTAThreadPool threadPool) {
         ThreadPool = threadPool ?? throw new ArgumentNullException(nameof(threadPool));
     }
@@ -62,10 +70,14 @@ public sealed class Win32ThumbnailService : Win32BaseService {
     /// Gets a thumbnail or icon image for a file or folder path.
     /// </summary>
     /// <param name="path">The path of the file or folder to get an image for.</param>
-    /// <param name="width">The requested image width, in pixels.</param>
-    /// <param name="height">The requested image height, in pixels.</param>
+    /// <param name="width">The requested image width, in pixels; must be greater than zero.</param>
+    /// <param name="height">The requested image height, in pixels; must be greater than zero.</param>
     /// <param name="cancellationToken">A token that can be used to cancel the request.</param>
     /// <returns>A task that completes with the thumbnail or icon image.</returns>
+    /// <remarks>
+    /// Tries a cached thumbnail first, then thumbnail generation, then a resized thumbnail or icon.
+    /// Bitmap sources are frozen when WPF permits it.
+    /// </remarks>
     /// <exception cref="ArgumentNullException">
     /// <paramref name="path"/> is <see langword="null"/> or empty.
     /// </exception>
@@ -74,6 +86,9 @@ public sealed class Win32ThumbnailService : Win32BaseService {
     /// </exception>
     /// <exception cref="OperationCanceledException">The request was canceled.</exception>
     /// <exception cref="ObjectDisposedException">The service has been disposed.</exception>
+    /// <exception cref="COMException">
+    /// A Windows Shell image request fails.
+    /// </exception>
     public Task<BitmapSource> GetThumbnailSource(string path,
                                                  int width,
                                                  int height,
