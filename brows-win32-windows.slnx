@@ -3,6 +3,13 @@
   <Folder Name="/.github/workflows/">
     <File Path=".github/workflows/workflow.yml" />
   </Folder>
+  <Folder Name="/samples/">
+    <Project Path="samples/Brows.Win32.Windows.Sample/Brows.Win32.Windows.Sample.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Brows.Win32.Windows.Composition.Tests/Brows.Win32.Windows.Composition.Tests.csproj" />
+    <Project Path="tests/Brows.Win32.Windows.Tests/Brows.Win32.Windows.Tests.csproj" />
+  </Folder>
   <Folder Name="/_/">
     <File Path=".editorconfig" />
     <File Path=".gitattributes" />
@@ -23,9 +30,6 @@
   <Folder Name="/_/tests/">
     <File Path="tests/Directory.Build.props" />
   </Folder>
-  <Project Path="samples/Brows.Win32.Windows.Sample/Brows.Win32.Windows.Sample.csproj" />
   <Project Path="source/Brows.Win32.Windows.Composition/Brows.Win32.Windows.Composition.csproj" />
   <Project Path="source/Brows.Win32.Windows/Brows.Win32.Windows.csproj" />
-  <Project Path="tests/Brows.Win32.Windows.Composition.Tests/Brows.Win32.Windows.Composition.Tests.csproj" />
-  <Project Path="tests/Brows.Win32.Windows.Tests/Brows.Win32.Windows.Tests.csproj" />
 </Solution>

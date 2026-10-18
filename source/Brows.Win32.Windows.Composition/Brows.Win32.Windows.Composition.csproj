@@ -3,6 +3,8 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Brows.Composition" />
+    <PackageReference Include="Brows.Win32.STAThreadPool" />
+    <PackageReference Include="Brows.Win32.STAThreadPool.Composition" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Brows.Win32.Windows\Brows.Win32.Windows.csproj" />

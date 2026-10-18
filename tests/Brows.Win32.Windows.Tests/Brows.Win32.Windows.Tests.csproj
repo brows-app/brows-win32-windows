@@ -2,6 +2,9 @@
   <PropertyGroup>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="Brows.Win32.STAThreadPool" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\..\source\Brows.Win32.Windows\Brows.Win32.Windows.csproj" />
   </ItemGroup>
 </Project>

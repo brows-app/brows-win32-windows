@@ -10,10 +10,18 @@ namespace Brows.Win32;
 /// </summary>
 /// <remarks>
 /// The export performs Shell work on an STA thread pool. A pool supplied through
-/// <see cref="Win32WindowsServicesVariable.ThreadPool"/> remains owned by its caller; otherwise, the export
-/// creates a pool when first used and empties it when the composition environment kills the export. Cancellation
-/// can stop queued work or a caller's wait, but cannot interrupt a native Shell call that is already running.
-/// Returned bitmap sources are frozen when WPF permits it.
+/// <see cref="Win32WindowsServicesVariable.ThreadPool"/> remains owned by its caller. Otherwise, the export
+/// resolves a pool when the services are first used: a pool provided by an optional imported
+/// <see cref="Brows.Threading.ISTAThreadPoolProvider"/> is used as-is, and its lifetime is left to the provider; a
+/// pool created through an optional imported <see cref="Brows.Threading.ISTAThreadPoolFactory"/> or through direct
+/// construction is owned by the export and is emptied when the composition environment kills the export.
+/// Cancellation can stop queued work or a caller's wait, but cannot interrupt a native Shell call that is already
+/// running. Returned bitmap sources are frozen when WPF permits it.
+/// <para>
+/// A request made after the kill operation throws <see cref="InvalidOperationException"/>. A request that races
+/// the kill operation can instead be rejected with <see cref="ObjectDisposedException"/> by the underlying
+/// service.
+/// </para>
 /// </remarks>
 public interface IWin32WindowsServices : IExport {
     /// <summary>
@@ -37,6 +45,9 @@ public interface IWin32WindowsServices : IExport {
     /// <exception cref="ArgumentNullException"><paramref name="path"/> is <see langword="null"/> or empty.</exception>
     /// <exception cref="OperationCanceledException">The request was canceled.</exception>
     /// <exception cref="InvalidOperationException">The composition environment has killed the export.</exception>
+    /// <exception cref="ObjectDisposedException">
+    /// The request raced the kill operation and the underlying service was disposed first.
+    /// </exception>
     Task<BitmapSource> GetIconSource(
         string path,
         FileAttributes? attributes = null,
@@ -52,6 +63,9 @@ public interface IWin32WindowsServices : IExport {
     /// </returns>
     /// <exception cref="OperationCanceledException">The request was canceled.</exception>
     /// <exception cref="InvalidOperationException">The composition environment has killed the export.</exception>
+    /// <exception cref="ObjectDisposedException">
+    /// The request raced the kill operation and the underlying service was disposed first.
+    /// </exception>
     Task<BitmapSource> GetIconSource(
         Win32StockIcon stockIcon,
         CancellationToken cancellationToken = default);
@@ -67,13 +81,17 @@ public interface IWin32WindowsServices : IExport {
     /// <param name="cancellationToken">A token that can be used to cancel the request.</param>
     /// <returns>
     /// A task that completes with the effective overlay icon selected by the Windows Shell, or
-    /// <see langword="null"/> if the Shell does not assign an overlay to the path.
+    /// <see langword="null"/> if the Shell does not assign an overlay to the path or its attributes cannot be
+    /// retrieved from Windows.
     /// </returns>
     /// <exception cref="ArgumentNullException"><paramref name="path"/> is <see langword="null"/> or empty.</exception>
     /// <exception cref="OperationCanceledException">The request was canceled.</exception>
     /// <exception cref="System.ComponentModel.Win32Exception">A Windows Shell icon lookup fails.</exception>
     /// <exception cref="System.Runtime.InteropServices.COMException">A Windows Shell image list call fails.</exception>
     /// <exception cref="InvalidOperationException">The composition environment has killed the export.</exception>
+    /// <exception cref="ObjectDisposedException">
+    /// The request raced the kill operation and the underlying service was disposed first.
+    /// </exception>
     Task<BitmapSource> GetOverlayIconSource(
         string path,
         FileAttributes? attributes = null,
@@ -94,6 +112,9 @@ public interface IWin32WindowsServices : IExport {
     /// <exception cref="OperationCanceledException">The request was canceled.</exception>
     /// <exception cref="System.Runtime.InteropServices.COMException">A Windows Shell image request fails.</exception>
     /// <exception cref="InvalidOperationException">The composition environment has killed the export.</exception>
+    /// <exception cref="ObjectDisposedException">
+    /// The request raced the kill operation and the underlying service was disposed first.
+    /// </exception>
     Task<BitmapSource> GetThumbnailSource(
         string path,
         int width,

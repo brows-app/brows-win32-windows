@@ -24,8 +24,9 @@ internal sealed class Win32WindowsServices : IWin32WindowsServices,
         Locker = new();
 
     private bool Killed;
+    private bool Varied;
     private bool ThreadPoolOwned { get; set; }
-    private STAThreadPool ThreadPool { get; set; }
+    private ISTAThreadPool ThreadPool { get; set; }
     private int IconAttempts { get; set; } = Win32IconService.AttemptsDefault;
     private int IconAttemptDelay { get; set; } = Win32IconService.AttemptDelayDefault;
 
@@ -40,16 +41,21 @@ internal sealed class Win32WindowsServices : IWin32WindowsServices,
         }
     }
 
+    [ImportOptional] internal ISTAThreadPoolFactory ThreadPoolFactory { get; set; }
+    [ImportOptional] internal ISTAThreadPoolProvider ThreadPoolProvider { get; set; }
+
     public Win32WindowsServices() {
         LazyServices = new(() => {
             if (ThreadPool is null) {
-                ThreadPool = new STAThreadPool(nameof(Win32WindowsServices)) {
-                    IdleTime = TimeSpan.FromMinutes(2),
-                    TryWorkDelay = 10,
-                    WorkerCountMax = Environment.ProcessorCount,
-                    WorkerCountMin = 1,
-                };
-                ThreadPoolOwned = true;
+                var providedThreadPool = ThreadPool = ThreadPoolProvider?.GetThreadPool(this);
+                if (providedThreadPool is null) {
+                    var createdThreadPool = ThreadPool =
+                        ThreadPoolFactory?.CreateThreadPool(nameof(Win32WindowsServices));
+                    if (createdThreadPool is null) {
+                        ThreadPool = new STAThreadPool(nameof(Win32WindowsServices));
+                    }
+                    ThreadPoolOwned = true;
+                }
             }
             if (Log.Info()) {
                 Log.Info($"Creating Win32 Windows services with thread pool: {ThreadPool.Name}");
@@ -94,6 +100,10 @@ internal sealed class Win32WindowsServices : IWin32WindowsServices,
             if (LazyServices.IsValueCreated) {
                 throw new InvalidOperationException("The Win32 Windows services have already been created.");
             }
+            if (Varied) {
+                throw new InvalidOperationException(
+                    "The Win32 Windows services configuration has already been applied.");
+            }
             var iconAttempts = variable?.IconAttempts;
             if (iconAttempts < 1) {
                 throw new ArgumentOutOfRangeException(nameof(variable), iconAttempts,
@@ -108,13 +118,14 @@ internal sealed class Win32WindowsServices : IWin32WindowsServices,
             ThreadPoolOwned = false;
             IconAttemptDelay = iconAttemptDelay ?? IconAttemptDelay;
             IconAttempts = iconAttempts ?? IconAttempts;
+            Varied = true;
         }
         return Task.CompletedTask;
     }
 
     void IExportAndKill.Kill() {
         ServiceWrapper services;
-        STAThreadPool threadPool;
+        ISTAThreadPool threadPool;
         bool threadPoolOwned;
         lock (Locker) {
             if (Killed) {
@@ -135,7 +146,7 @@ internal sealed class Win32WindowsServices : IWin32WindowsServices,
         }
         try {
             if (threadPoolOwned) {
-                threadPool.Empty();
+                ((ISTAThreadPool)threadPool).Empty();
             }
         }
         catch (Exception ex) {
@@ -149,10 +160,9 @@ internal sealed class Win32WindowsServices : IWin32WindowsServices,
         public Win32IconService Icon { get; }
         public Win32OverlayService Overlay { get; }
         public Win32ThumbnailService Thumbnail { get; }
+        public ISTAThreadPool ThreadPool { get; }
 
-        public STAThreadPool ThreadPool { get; }
-
-        public ServiceWrapper(STAThreadPool threadPool, int iconAttempts, int iconAttemptDelay) {
+        public ServiceWrapper(ISTAThreadPool threadPool, int iconAttempts, int iconAttemptDelay) {
             ThreadPool = threadPool;
             Icon = new(ThreadPool) {
                 AttemptDelay = iconAttemptDelay,

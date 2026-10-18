@@ -9,9 +9,6 @@ internal static class shell32 {
     public const int MAX_PATH = 260;
     public const int SHIL_SMALL = 1;
 
-    //[DllImport("shell32.dll", CharSet = CharSet.Unicode, PreserveSig = true, SetLastError = true)]
-    //public static extern bool ShellExecuteExW([In, Out] ref SHELLEXECUTEINFOW lpExecInfo);
-
     [DllImport("shell32.dll", CharSet = CharSet.Unicode, PreserveSig = true)]
     public static extern IntPtr SHGetFileInfoW(
         [In] string pszPath,

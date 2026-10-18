@@ -1,4 +1,4 @@
-﻿using Brows.Threading;
+using Brows.Threading;
 using System;
 using System.Globalization;
 using System.IO;
@@ -9,22 +9,41 @@ namespace Brows.Win32;
 
 [TestFixture]
 public sealed class Win32IconServiceTests {
+    private ISTAThreadPool ThreadPool;
+
+    [SetUp]
+    public void SetUp() {
+        ThreadPool = new STAThreadPool(TestContext.CurrentContext.Test.Name);
+    }
+
+    [TearDown]
+    public void TearDown() {
+        ThreadPool.Empty();
+    }
+
+    [Test]
+    public void Constructor_WhenThreadPoolIsNull_ThrowsArgumentNullException() {
+        var exception = Assert.Throws<ArgumentNullException>(() => new Win32IconService(null));
+
+        Assert.That(exception.ParamName, Is.EqualTo("threadPool"));
+    }
+
     [Test]
     public void Dispose_CanBeCalledMoreThanOnce() {
-        var service = new Win32IconService();
+        var service = new Win32IconService(ThreadPool);
 
         Assert.DoesNotThrow(service.Dispose);
         Assert.DoesNotThrow(service.Dispose);
     }
 
     [Test]
-    public void GetIconSource_AfterDispose_ThrowsObjectDisposedException() {
-        var service = new Win32IconService();
+    public async Task GetIconSource_AfterDispose_ThrowsObjectDisposedException() {
+        var service = new Win32IconService(ThreadPool);
         service.Dispose();
 
-        var pathException = Assert.ThrowsAsync<ObjectDisposedException>(
+        var pathException = await Assert.ThrowsAsync<ObjectDisposedException>(
             async () => await service.GetIconSource("example.txt", cancellationToken: CancellationToken.None));
-        var stockException = Assert.ThrowsAsync<ObjectDisposedException>(
+        var stockException = await Assert.ThrowsAsync<ObjectDisposedException>(
             async () => await service.GetIconSource(Win32StockIcon.Folder, CancellationToken.None));
 
         using (Assert.EnterMultipleScope()) {
@@ -35,10 +54,10 @@ public sealed class Win32IconServiceTests {
 
     [TestCase(null)]
     [TestCase("")]
-    public void GetIconSource_WhenPathIsNullOrEmpty_ThrowsArgumentNullException(string path) {
-        using var service = new Win32IconService();
+    public async Task GetIconSource_WhenPathIsNullOrEmpty_ThrowsArgumentNullException(string path) {
+        using var service = new Win32IconService(ThreadPool);
 
-        var exception = Assert.ThrowsAsync<ArgumentNullException>(
+        var exception = await Assert.ThrowsAsync<ArgumentNullException>(
             async () => await service.GetIconSource(path));
 
         Assert.That(exception.ParamName, Is.EqualTo("path"));
@@ -47,7 +66,7 @@ public sealed class Win32IconServiceTests {
     [TestCase(0)]
     [TestCase(-1)]
     public void Attempts_WhenValueIsLessThanOne_ThrowsArgumentOutOfRangeException(int value) {
-        using var service = new Win32IconService();
+        using var service = new Win32IconService(ThreadPool);
 
         var exception = Assert.Throws<ArgumentOutOfRangeException>(() => service.Attempts = value);
 
@@ -59,7 +78,7 @@ public sealed class Win32IconServiceTests {
 
     [Test]
     public void AttemptDelay_WhenValueIsNegative_ThrowsArgumentOutOfRangeException() {
-        using var service = new Win32IconService();
+        using var service = new Win32IconService(ThreadPool);
 
         var exception = Assert.Throws<ArgumentOutOfRangeException>(() => service.AttemptDelay = -1);
 
@@ -71,7 +90,7 @@ public sealed class Win32IconServiceTests {
 
     [Test]
     public async Task GetIconSource_WhenStockIconIsCachedAndTokenIsCanceled_ThrowsOperationCanceledException() {
-        using var service = new Win32IconService();
+        using var service = new Win32IconService(ThreadPool);
         var source = await service.GetIconSource(Win32StockIcon.Folder);
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
@@ -84,7 +103,7 @@ public sealed class Win32IconServiceTests {
 
     [Test]
     public async Task GetIconSource_WhenRetrievingStockIcon_ReturnsFrozenCachedSource() {
-        using var service = new Win32IconService();
+        using var service = new Win32IconService(ThreadPool);
 
         var first = await service.GetIconSource(Win32StockIcon.Folder);
         var second = await service.GetIconSource(Win32StockIcon.Folder);
@@ -100,7 +119,7 @@ public sealed class Win32IconServiceTests {
 
     [Test]
     public async Task GetIconSource_WhenPathExists_ReturnsFrozenSource() {
-        using var service = new Win32IconService();
+        using var service = new Win32IconService(ThreadPool);
         var path = typeof(Win32IconServiceTests).Assembly.Location;
 
         var source = await service.GetIconSource(path, File.GetAttributes(path));
@@ -119,7 +138,7 @@ public sealed class Win32IconServiceTests {
         var originalCulture = CultureInfo.CurrentCulture;
         CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("tr-TR");
         try {
-            using var service = new Win32IconService();
+            using var service = new Win32IconService(ThreadPool);
             var missingPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.ICO");
 
             var upper = await service.GetIconSource(missingPath);
@@ -136,18 +155,18 @@ public sealed class Win32IconServiceTests {
     }
 
     [Test]
-    public async Task Dispose_DoesNotEmptyBorrowedThreadPool() {
-        var pool = new STAThreadPool(nameof(Dispose_DoesNotEmptyBorrowedThreadPool)) {
+    public async Task Dispose_DoesNotEmptySuppliedThreadPool() {
+        ISTAThreadPool pool = new STAThreadPool(nameof(Dispose_DoesNotEmptySuppliedThreadPool)) {
             WorkerCountMax = 1,
         };
         try {
-            var workerBefore = await pool.Work(nameof(Dispose_DoesNotEmptyBorrowedThreadPool),
+            var workerBefore = await pool.Work(nameof(Dispose_DoesNotEmptySuppliedThreadPool),
                 () => Thread.CurrentThread.ManagedThreadId, CancellationToken.None);
 
             using (var service = new Win32IconService(pool)) {
             }
 
-            var workerAfter = await pool.Work(nameof(Dispose_DoesNotEmptyBorrowedThreadPool),
+            var workerAfter = await pool.Work(nameof(Dispose_DoesNotEmptySuppliedThreadPool),
                 () => Thread.CurrentThread.ManagedThreadId, CancellationToken.None);
 
             Assert.That(workerAfter, Is.EqualTo(workerBefore));
@@ -159,7 +178,7 @@ public sealed class Win32IconServiceTests {
 
     [Test]
     public async Task Dispose_WaitsForAnActiveRequest() {
-        var pool = new STAThreadPool(nameof(Dispose_WaitsForAnActiveRequest)) {
+        ISTAThreadPool pool = new STAThreadPool(nameof(Dispose_WaitsForAnActiveRequest)) {
             WorkerCountMax = 1,
         };
         using var workerStarted = new ManualResetEventSlim();
@@ -204,7 +223,7 @@ public sealed class Win32IconServiceTests {
 
     [Test]
     public async Task GetIconSource_WhenSharedRequestWaiterIsCanceled_CancelsOnlyThatWaiter() {
-        var pool = new STAThreadPool(nameof(GetIconSource_WhenSharedRequestWaiterIsCanceled_CancelsOnlyThatWaiter)) {
+        ISTAThreadPool pool = new STAThreadPool(nameof(GetIconSource_WhenSharedRequestWaiterIsCanceled_CancelsOnlyThatWaiter)) {
             WorkerCountMax = 1,
         };
         using var workerStarted = new ManualResetEventSlim();

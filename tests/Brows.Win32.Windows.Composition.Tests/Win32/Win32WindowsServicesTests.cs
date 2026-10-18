@@ -1,5 +1,6 @@
 ﻿using Brows.Composition;
 using Brows.Threading;
+using System;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -34,7 +35,7 @@ public sealed class Win32WindowsServicesTests {
     public async Task GetIconSource_WhenPathIsNullOrEmpty_ThrowsArgumentNullException(string path) {
         var implementation = new Win32WindowsServices();
         try {
-            var exception = Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            var exception = await Assert.ThrowsAsync<ArgumentNullException>(async () =>
                 await ((IWin32WindowsServices)implementation).GetIconSource(path));
 
             Assert.That(exception.ParamName, Is.EqualTo("path"));
@@ -49,7 +50,7 @@ public sealed class Win32WindowsServicesTests {
     public async Task GetOverlayIconSource_WhenPathIsNullOrEmpty_ThrowsArgumentNullException(string path) {
         var implementation = new Win32WindowsServices();
         try {
-            var exception = Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            var exception = await Assert.ThrowsAsync<ArgumentNullException>(async () =>
                 await ((IWin32WindowsServices)implementation).GetOverlayIconSource(path));
 
             Assert.That(exception.ParamName, Is.EqualTo("path"));
@@ -64,7 +65,7 @@ public sealed class Win32WindowsServicesTests {
     public async Task GetThumbnailSource_WhenPathIsNullOrEmpty_ThrowsArgumentNullException(string path) {
         var implementation = new Win32WindowsServices();
         try {
-            var exception = Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            var exception = await Assert.ThrowsAsync<ArgumentNullException>(async () =>
                 await ((IWin32WindowsServices)implementation).GetThumbnailSource(path, width: 1, height: 1));
 
             Assert.That(exception.ParamName, Is.EqualTo("path"));
@@ -79,7 +80,7 @@ public sealed class Win32WindowsServicesTests {
     public async Task GetThumbnailSource_WhenWidthIsNotPositive_ThrowsArgumentOutOfRangeException(int width) {
         var implementation = new Win32WindowsServices();
         try {
-            var exception = Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+            var exception = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
                 await ((IWin32WindowsServices)implementation).GetThumbnailSource("unused", width, height: 1));
 
             Assert.That(exception.ParamName, Is.EqualTo("width"));
@@ -94,7 +95,7 @@ public sealed class Win32WindowsServicesTests {
     public async Task GetThumbnailSource_WhenHeightIsNotPositive_ThrowsArgumentOutOfRangeException(int height) {
         var implementation = new Win32WindowsServices();
         try {
-            var exception = Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+            var exception = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
                 await ((IWin32WindowsServices)implementation).GetThumbnailSource("unused", width: 1, height));
 
             Assert.That(exception.ParamName, Is.EqualTo("height"));
@@ -142,7 +143,7 @@ public sealed class Win32WindowsServicesTests {
 
         try {
             await vary.Vary(new Win32WindowsServicesVariable { ThreadPool = pool }, CancellationToken.None);
-            var workerBefore = await pool.Work(nameof(GetIconSource_UsesExportAndKeepsBorrowedThreadPoolAliveAfterKill),
+            var workerBefore = await ((ISTAThreadPool)pool).Work(nameof(GetIconSource_UsesExportAndKeepsBorrowedThreadPoolAliveAfterKill),
                 () => Thread.CurrentThread.ManagedThreadId, CancellationToken.None);
 
             var source = await ((IWin32WindowsServices)implementation).GetIconSource(Win32StockIcon.Folder);
@@ -155,14 +156,14 @@ public sealed class Win32WindowsServicesTests {
             kill.Kill();
             kill.Kill();
 
-            var workerAfter = await pool.Work(nameof(GetIconSource_UsesExportAndKeepsBorrowedThreadPoolAliveAfterKill),
+            var workerAfter = await ((ISTAThreadPool)pool).Work(nameof(GetIconSource_UsesExportAndKeepsBorrowedThreadPoolAliveAfterKill),
                 () => Thread.CurrentThread.ManagedThreadId, CancellationToken.None);
 
             Assert.That(workerAfter, Is.EqualTo(workerBefore));
         }
         finally {
             kill.Kill();
-            pool.Empty();
+            ((ISTAThreadPool)pool).Empty();
         }
     }
 
@@ -225,6 +226,25 @@ public sealed class Win32WindowsServicesTests {
     }
 
     [Test]
+    public void Vary_AfterVaryHasBeenCalled_ThrowsInvalidOperationException() {
+        var implementation = new Win32WindowsServices();
+        var vary = (IExportAndVary<Win32WindowsServicesVariable>)implementation;
+        var kill = (IExportAndKill)implementation;
+
+        try {
+            Assert.DoesNotThrow(() => vary.Vary(new Win32WindowsServicesVariable {
+                IconAttempts = 2,
+            }, CancellationToken.None).GetAwaiter().GetResult());
+
+            Assert.Throws<InvalidOperationException>(() => vary.Vary(
+                new Win32WindowsServicesVariable { IconAttempts = 3 }, CancellationToken.None));
+        }
+        finally {
+            kill.Kill();
+        }
+    }
+
+    [Test]
     public async Task Vary_AfterServicesAreCreated_ThrowsInvalidOperationException() {
         var implementation = new Win32WindowsServices();
         var services = (IWin32WindowsServices)implementation;
@@ -254,5 +274,155 @@ public sealed class Win32WindowsServicesTests {
 
         Assert.DoesNotThrow(kill.Kill);
         Assert.Throws<InvalidOperationException>(() => services.GetIconSource(Win32StockIcon.Folder));
+    }
+
+    [Test]
+    public void GetIconSource_WhenFactorySuppliesThreadPool_UsesCreatedPoolAndEmptiesItOnKill() {
+        var implementation = new Win32WindowsServices();
+        var pool = new FakeThreadPool();
+        var factory = new FakeThreadPoolFactory { Pool = pool };
+        implementation.ThreadPoolFactory = factory;
+        var services = (IWin32WindowsServices)implementation;
+        var kill = (IExportAndKill)implementation;
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        try {
+            using (Assert.EnterMultipleScope()) {
+                Assert.That(async () => await services.GetIconSource(Win32StockIcon.Folder, cancellation.Token),
+                    Throws.InstanceOf<OperationCanceledException>());
+                Assert.That(factory.CreateCount, Is.EqualTo(1));
+                Assert.That(factory.CreateName, Is.EqualTo(nameof(Win32WindowsServices)));
+                Assert.That(pool.EmptyCount, Is.EqualTo(0));
+            }
+
+            kill.Kill();
+
+            Assert.That(pool.EmptyCount, Is.EqualTo(1));
+        }
+        finally {
+            kill.Kill();
+        }
+    }
+
+    [Test]
+    public void GetIconSource_WhenProviderSuppliesThreadPool_UsesProvidedPoolAndLeavesItAfterKill() {
+        var implementation = new Win32WindowsServices();
+        var pool = new FakeThreadPool();
+        var provider = new FakeThreadPoolProvider { Pool = pool };
+        var factoryPool = new FakeThreadPool();
+        var factory = new FakeThreadPoolFactory { Pool = factoryPool };
+        implementation.ThreadPoolProvider = provider;
+        implementation.ThreadPoolFactory = factory;
+        var services = (IWin32WindowsServices)implementation;
+        var kill = (IExportAndKill)implementation;
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        try {
+            using (Assert.EnterMultipleScope()) {
+                Assert.That(async () => await services.GetIconSource(Win32StockIcon.Folder, cancellation.Token),
+                    Throws.InstanceOf<OperationCanceledException>());
+                Assert.That(provider.GetCount, Is.EqualTo(1));
+                Assert.That(ReferenceEquals(provider.Target, implementation), Is.True);
+                Assert.That(factory.CreateCount, Is.EqualTo(0));
+                Assert.That(pool.EmptyCount, Is.EqualTo(0));
+            }
+
+            kill.Kill();
+
+            Assert.That(pool.EmptyCount, Is.EqualTo(0));
+        }
+        finally {
+            kill.Kill();
+        }
+    }
+
+    [Test]
+    public async Task GetIconSource_WhenFactoryReturnsThreadPoolWithoutProvider_ConstructsPoolDirectly() {
+        var implementation = new Win32WindowsServices();
+        var factory = new FakeThreadPoolFactory {
+            Pool = null,
+        };
+        implementation.ThreadPoolFactory = factory;
+        var services = (IWin32WindowsServices)implementation;
+        var kill = (IExportAndKill)implementation;
+
+        try {
+            var source = await services.GetIconSource(Win32StockIcon.Folder);
+
+            using (Assert.EnterMultipleScope()) {
+                Assert.That(source, Is.Not.Null);
+                Assert.That(source.IsFrozen, Is.True);
+                Assert.That(factory.CreateCount, Is.EqualTo(1));
+            }
+        }
+        finally {
+            kill.Kill();
+        }
+    }
+
+    private sealed class FakeThreadPool : ISTAThreadPool {
+        public int EmptyCount;
+
+        private static Task<TResult> NotImplemented<TResult>() {
+            return Task.FromException<TResult>(new NotImplementedException());
+        }
+
+        public TimeSpan IdleTime => throw new NotImplementedException();
+
+        public string Name => "Fake";
+
+        public int TryWorkDelay => throw new NotImplementedException();
+
+        public int WorkerCountMax => throw new NotImplementedException();
+
+        public int WorkerCountMin => throw new NotImplementedException();
+
+        public void Empty() {
+            EmptyCount++;
+        }
+
+        public Task Work(string name, Action work, CancellationToken cancellationToken) {
+            return NotImplemented<object>();
+        }
+
+        public Task Work(string name, Func<CancellationToken, Task> work, CancellationToken cancellationToken) {
+            return NotImplemented<object>();
+        }
+
+        public Task<TResult> Work<TResult>(string name, Func<CancellationToken, Task<TResult>> work, CancellationToken cancellationToken) {
+            return NotImplemented<TResult>();
+        }
+
+        public Task<TResult> Work<TResult>(string name, Func<TResult> work, CancellationToken cancellationToken) {
+            return NotImplemented<TResult>();
+        }
+    }
+
+    private sealed class FakeThreadPoolFactory : ISTAThreadPoolFactory {
+        public ISTAThreadPool Pool { get; set; }
+
+        public int CreateCount;
+        public string CreateName;
+
+        ISTAThreadPool ISTAThreadPoolFactory.CreateThreadPool(string name, STAThreadPoolOptions options) {
+            CreateCount++;
+            CreateName = name;
+            return Pool;
+        }
+    }
+
+    private sealed class FakeThreadPoolProvider : ISTAThreadPoolProvider {
+        public ISTAThreadPool Pool { get; set; }
+
+        public int GetCount;
+        public object Target;
+
+        ISTAThreadPool ISTAThreadPoolProvider.GetThreadPool(object target) {
+            GetCount++;
+            Target = target;
+            return Pool;
+        }
     }
 }

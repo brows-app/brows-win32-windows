@@ -7,8 +7,9 @@ namespace Brows.Win32;
 /// Supplies configuration to the <see cref="IWin32WindowsServices"/> composition export.
 /// </summary>
 /// <remarks>
-/// Supply this configuration before making the first service request. Leave <see cref="ThreadPool"/> unset to
-/// let the export create and own its STA thread pool when first used.
+/// Supply this configuration before making the first service request, and supply it only once: a later
+/// application of configuration is rejected with <see cref="InvalidOperationException"/>. Leave
+/// <see cref="ThreadPool"/> unset to let the export create and own its STA thread pool when first used.
 /// </remarks>
 public sealed class Win32WindowsServicesVariable : IExportVariable {
     /// <summary>
@@ -18,14 +19,14 @@ public sealed class Win32WindowsServicesVariable : IExportVariable {
     /// A caller-owned pool to use, or <see langword="null"/> to let the export create and own a pool on first use.
     /// A supplied pool remains caller-owned and is not emptied when the export is killed.
     /// </value>
-    public STAThreadPool ThreadPool { get; set; }
+    public ISTAThreadPool ThreadPool { get; set; }
 
     /// <summary>
     /// Gets or sets the maximum number of attempts to retrieve an icon.
     /// </summary>
     /// <value>
-    /// The maximum number of attempts, including the initial attempt, or <see langword="null"/> to use the default
-    /// of 5 attempts. The value must be at least 1.
+    /// The maximum number of attempts, including the initial attempt, or <see langword="null"/> to leave the
+    /// current setting unchanged. The initial default is 5 attempts. The value must be at least 1.
     /// </value>
     public int? IconAttempts { get; set; }
 
@@ -33,8 +34,8 @@ public sealed class Win32WindowsServicesVariable : IExportVariable {
     /// Gets or sets the delay, in milliseconds, between failed icon retrieval attempts.
     /// </summary>
     /// <value>
-    /// The delay between attempts, or <see langword="null"/> to use the default of 100 milliseconds. The value must
-    /// be non-negative.
+    /// The delay between attempts, or <see langword="null"/> to leave the current setting unchanged.
+    /// The initial default is 100 milliseconds. The value must be non-negative.
     /// </value>
     public int? IconAttemptDelay { get; set; }
 

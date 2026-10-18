@@ -21,8 +21,7 @@ public sealed class Win32OverlayService : Win32BaseService {
     private static readonly ILog Log = Logging.For(typeof(Win32OverlayService));
 
     private readonly ConcurrentDictionary<int, BitmapSource> OverlayCache = [];
-    private readonly bool ThreadPoolOwned;
-    private readonly STAThreadPool ThreadPool;
+    private readonly ISTAThreadPool ThreadPool;
 
     private static Task<uint> GetPathAttributes(string path, CancellationToken token) {
         return Task.Run(() => {
@@ -116,31 +115,23 @@ public sealed class Win32OverlayService : Win32BaseService {
                 Log.Warn(ex);
             }
         }
-        try {
-            if (ThreadPoolOwned) {
-                ThreadPool.Empty();
-            }
-        }
-        catch (Exception ex) {
-            if (Log.Warn()) {
-                Log.Warn(ex);
-            }
-        }
     }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="Win32OverlayService"/> class.
     /// </summary>
     /// <param name="threadPool">
-    /// The optional STA thread pool to use for overlay requests. If omitted, the service creates a pool.
+    /// The non-null, caller-owned STA thread pool to use for overlay requests.
     /// </param>
-    public Win32OverlayService(STAThreadPool threadPool = null) {
-        ThreadPool = threadPool ?? new(nameof(Win32OverlayService)) {
-            TryWorkDelay = 10,
-            WorkerCountMax = Environment.ProcessorCount,
-            WorkerCountMin = 1,
-        };
-        ThreadPoolOwned = threadPool is null;
+    /// <remarks>
+    /// Disposing this service does not empty the pool. The caller must empty it after all services using it
+    /// have been disposed and other pool users have finished.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="threadPool"/> is <see langword="null"/>.
+    /// </exception>
+    public Win32OverlayService(ISTAThreadPool threadPool) {
+        ThreadPool = threadPool ?? throw new ArgumentNullException(nameof(threadPool));
     }
 
     /// <summary>
@@ -154,11 +145,17 @@ public sealed class Win32OverlayService : Win32BaseService {
     /// <param name="cancellationToken">A token that can be used to cancel the request.</param>
     /// <returns>
     /// A task that completes with the effective overlay icon, or <see langword="null"/> if no overlay is
-    /// associated with the path.
+    /// associated with the path or its attributes cannot be retrieved from Windows.
     /// </returns>
     /// <exception cref="ObjectDisposedException">The service has been disposed.</exception>
     /// <exception cref="OperationCanceledException">The request was canceled.</exception>
     /// <exception cref="ArgumentNullException"><paramref name="path"/> is <see langword="null"/> or empty.</exception>
+    /// <exception cref="Win32Exception">
+    /// A Windows Shell icon lookup fails.
+    /// </exception>
+    /// <exception cref="COMException">
+    /// A Windows Shell image list call fails.
+    /// </exception>
     public async Task<BitmapSource> GetOverlayIconSource(string path,
                                                          FileAttributes? attributes = null,
                                                          CancellationToken cancellationToken = default) {
