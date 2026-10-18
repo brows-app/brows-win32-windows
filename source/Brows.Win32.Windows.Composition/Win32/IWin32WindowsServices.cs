@@ -10,10 +10,13 @@ namespace Brows.Win32;
 /// </summary>
 /// <remarks>
 /// The export performs Shell work on an STA thread pool. A pool supplied through
-/// <see cref="Win32WindowsServicesVariable.ThreadPool"/> remains owned by its caller; otherwise, the export
-/// creates a pool when first used and empties it when the composition environment kills the export. Cancellation
-/// can stop queued work or a caller's wait, but cannot interrupt a native Shell call that is already running.
-/// Returned bitmap sources are frozen when WPF permits it.
+/// <see cref="Win32WindowsServicesVariable.ThreadPool"/> remains owned by its caller. Otherwise, the export
+/// resolves a pool when the services are first used: a pool provided by an optional imported
+/// <see cref="Brows.Threading.ISTAThreadPoolProvider"/> is used as-is, and its lifetime is left to the provider; a
+/// pool created through an optional imported <see cref="Brows.Threading.ISTAThreadPoolFactory"/> or through direct
+/// construction is owned by the export and is emptied when the composition environment kills the export.
+/// Cancellation can stop queued work or a caller's wait, but cannot interrupt a native Shell call that is already
+/// running. Returned bitmap sources are frozen when WPF permits it.
 /// <para>
 /// A request made after the kill operation throws <see cref="InvalidOperationException"/>. A request that races
 /// the kill operation can instead be rejected with <see cref="ObjectDisposedException"/> by the underlying

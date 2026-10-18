@@ -7,9 +7,6 @@
     <ApplicationDefinition Include="Win32WindowsSampleApp.xaml" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Brows.Win32.STAThreadPool.Composition.Exports" />
-  </ItemGroup>
-  <ItemGroup>
     <ProjectReference Include="..\..\source\Brows.Win32.Windows.Composition\Brows.Win32.Windows.Composition.csproj" />
   </ItemGroup>
 </Project>

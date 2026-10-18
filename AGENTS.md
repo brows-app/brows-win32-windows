@@ -332,13 +332,17 @@ code more complicated, such as when the field must be `volatile`.
 - Preserve the icon service's stock and file-type caches, ordinal case-insensitive
   extension keys, retry settings, and cancellation behavior for shared requests.
   Canceling one waiter must not cancel another caller's shared request.
-- The composition export lazily creates its services and a shared pool unless
-  a caller supplies one through `Win32WindowsServicesVariable`. Apply variables
-  before the first service request. `Kill` is idempotent, disposes services,
-  empties only the export-owned pool, and prevents later service requests.
-  Document both rejected-request exceptions: requests after the kill operation
-  throw `InvalidOperationException`, and a request racing the kill operation can
-  be rejected with `ObjectDisposedException` by the disposed service.
+- The composition export lazily creates its services and resolves a pool unless
+  a caller supplies one through `Win32WindowsServicesVariable`. Resolution
+  prefers a pool provided by an optional imported `ISTAThreadPoolProvider`, then
+  a pool created by an optional imported `ISTAThreadPoolFactory`, then direct
+  construction. `Kill` empties only pools it created; variable-supplied and
+  provider-provided pools remain with their owners. Apply variables before the
+  first service request. `Kill` is idempotent, disposes services, and prevents
+  later service requests. Document both rejected-request exceptions: requests
+  after the kill operation throw `InvalidOperationException`, and a request
+  racing the kill operation can be rejected with `ObjectDisposedException` by
+  the disposed service.
 
 ## Tests
 

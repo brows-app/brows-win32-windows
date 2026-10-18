@@ -30,13 +30,13 @@ To consume the source from this repository, add a project reference:
 <ProjectReference Include="path/to/source/Brows.Win32.Windows/Brows.Win32.Windows.csproj" />
 ```
 
-`Brows.Win32.Windows.Composition` is a companion NuGet package for applications using `Brows.Composition`. It exports `IWin32WindowsServices`, which forwards icon, overlay, and thumbnail requests to the services in this library. An optional `Win32WindowsServicesVariable` supplies a caller-owned STA thread pool; otherwise the export creates a shared pool when first used. See the [Composition package README](source/Brows.Win32.Windows.Composition/README.md) for lifecycle details.
+`Brows.Win32.Windows.Composition` is a companion NuGet package for applications using `Brows.Composition`. It exports `IWin32WindowsServices`, which forwards icon, overlay, and thumbnail requests to the services in this library. An optional `Win32WindowsServicesVariable` supplies a caller-owned STA thread pool; without one, the export resolves a shared pool when first used — it takes a pool provided by an optional imported `ISTAThreadPoolProvider` as-is, otherwise it creates one through an optional imported `ISTAThreadPoolFactory` or by direct construction and owns that pool. See the [Composition package README](source/Brows.Win32.Windows.Composition/README.md) for lifecycle details.
 
 ## Usage
 
-Each service constructor requires a non-null `Brows.Threading.ISTAThreadPool`. A null pool throws `ArgumentNullException`. The implementation package `Brows.Win32.STAThreadPool` is a dependency, so you can construct an `STAThreadPool` directly. Keep the pool and services for the lifetime of the component using them to reuse workers and service caches.
+Each service constructor requires a non-null `Brows.Threading.ISTAThreadPool`. A null pool throws `ArgumentNullException`. This package depends on `Brows.Win32.STAThreadPool.Contracts`, which defines `ISTAThreadPool` but no implementation. To construct an `STAThreadPool` directly, reference the implementation package `Brows.Win32.STAThreadPool`; a composition factory, such as the one in `Brows.Win32.STAThreadPool.Composition.Exports`, can supply a pool instead. Keep the pool and services for the lifetime of the component using them to reuse workers and service caches.
 
-The services expose `Task`-based APIs. Await them instead of synchronously blocking a WPF dispatcher with `.Wait()` or `.Result`. This example uses a pool for one batch and disposes the services before emptying it:
+The services expose `Task`-based APIs. Await them instead of synchronously blocking a WPF dispatcher with `.Wait()` or `.Result`. This example, which requires the implementation package, uses a pool for one batch and disposes the services before emptying it:
 
 ```csharp
 using Brows.Threading;
@@ -84,7 +84,7 @@ Pass a `CancellationToken` to any service to cancel work that has not started an
 
 `Win32IconService`, `Win32OverlayService`, and `Win32ThumbnailService` implement `IDisposable`. Disposal prevents new operations and waits synchronously for active requests before releasing the service's resources. Complete outstanding requests before disposal when possible. If disposing while requests are active from a WPF UI, use an asynchronous shutdown path, for example `await Task.Run(() => service.Dispose())`, and keep the dispatcher alive until shutdown completes.
 
-The caller owns the pool supplied to each service. Disposing a service does not empty that pool. Empty it only after all services using it have been disposed and other pool users have finished. If you use the composition export, its kill operation handles service disposal and empties a pool created by the export; a pool supplied through configuration remains caller-owned.
+The caller owns the pool supplied to each service. Disposing a service does not empty that pool. Empty it only after all services using it have been disposed and other pool users have finished. If you use the composition export, its kill operation handles service disposal and empties only a pool the export created; a pool supplied through configuration remains caller-owned, and a pool provided by an `ISTAThreadPoolProvider` remains the provider's responsibility.
 
 ## Build and sample
 
