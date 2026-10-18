@@ -24,6 +24,7 @@ internal sealed class Win32WindowsServices : IWin32WindowsServices,
         Locker = new();
 
     private bool Killed;
+    private bool Varied;
     private bool ThreadPoolOwned { get; set; }
     private ISTAThreadPool ThreadPool { get; set; }
     private int IconAttempts { get; set; } = Win32IconService.AttemptsDefault;
@@ -99,6 +100,10 @@ internal sealed class Win32WindowsServices : IWin32WindowsServices,
             if (LazyServices.IsValueCreated) {
                 throw new InvalidOperationException("The Win32 Windows services have already been created.");
             }
+            if (Varied) {
+                throw new InvalidOperationException(
+                    "The Win32 Windows services configuration has already been applied.");
+            }
             var iconAttempts = variable?.IconAttempts;
             if (iconAttempts < 1) {
                 throw new ArgumentOutOfRangeException(nameof(variable), iconAttempts,
@@ -113,6 +118,7 @@ internal sealed class Win32WindowsServices : IWin32WindowsServices,
             ThreadPoolOwned = false;
             IconAttemptDelay = iconAttemptDelay ?? IconAttemptDelay;
             IconAttempts = iconAttempts ?? IconAttempts;
+            Varied = true;
         }
         return Task.CompletedTask;
     }

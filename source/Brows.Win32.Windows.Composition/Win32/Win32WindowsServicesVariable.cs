@@ -7,8 +7,9 @@ namespace Brows.Win32;
 /// Supplies configuration to the <see cref="IWin32WindowsServices"/> composition export.
 /// </summary>
 /// <remarks>
-/// Supply this configuration before making the first service request. Leave <see cref="ThreadPool"/> unset to
-/// let the export create and own its STA thread pool when first used.
+/// Supply this configuration before making the first service request, and supply it only once: a later
+/// application of configuration is rejected with <see cref="InvalidOperationException"/>. Leave
+/// <see cref="ThreadPool"/> unset to let the export create and own its STA thread pool when first used.
 /// </remarks>
 public sealed class Win32WindowsServicesVariable : IExportVariable {
     /// <summary>

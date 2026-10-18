@@ -225,6 +225,25 @@ public sealed class Win32WindowsServicesTests {
     }
 
     [Test]
+    public void Vary_AfterVaryHasBeenCalled_ThrowsInvalidOperationException() {
+        var implementation = new Win32WindowsServices();
+        var vary = (IExportAndVary<Win32WindowsServicesVariable>)implementation;
+        var kill = (IExportAndKill)implementation;
+
+        try {
+            Assert.DoesNotThrow(() => vary.Vary(new Win32WindowsServicesVariable {
+                IconAttempts = 2,
+            }, CancellationToken.None).GetAwaiter().GetResult());
+
+            Assert.Throws<InvalidOperationException>(() => vary.Vary(
+                new Win32WindowsServicesVariable { IconAttempts = 3 }, CancellationToken.None));
+        }
+        finally {
+            kill.Kill();
+        }
+    }
+
+    [Test]
     public async Task Vary_AfterServicesAreCreated_ThrowsInvalidOperationException() {
         var implementation = new Win32WindowsServices();
         var services = (IWin32WindowsServices)implementation;
