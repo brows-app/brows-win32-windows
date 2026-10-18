@@ -18,7 +18,7 @@ public sealed class Win32WindowsServicesVariable : IExportVariable {
     /// A caller-owned pool to use, or <see langword="null"/> to let the export create and own a pool on first use.
     /// A supplied pool remains caller-owned and is not emptied when the export is killed.
     /// </value>
-    public STAThreadPool ThreadPool { get; set; }
+    public ISTAThreadPool ThreadPool { get; set; }
 
     /// <summary>
     /// Gets or sets the maximum number of attempts to retrieve an icon.

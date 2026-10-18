@@ -336,6 +336,9 @@ code more complicated, such as when the field must be `volatile`.
   a caller supplies one through `Win32WindowsServicesVariable`. Apply variables
   before the first service request. `Kill` is idempotent, disposes services,
   empties only the export-owned pool, and prevents later service requests.
+  Document both rejected-request exceptions: requests after the kill operation
+  throw `InvalidOperationException`, and a request racing the kill operation can
+  be rejected with `ObjectDisposedException` by the disposed service.
 
 ## Tests
 
