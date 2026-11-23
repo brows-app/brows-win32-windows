@@ -58,7 +58,8 @@ public async Task<BitmapSource[]> LoadPreviewsAsync(
         var icon = await iconService.GetIconSource(
             path, cancellationToken: cancellationToken);
         var thumbnail = await thumbnailService.GetThumbnailSource(
-            path, width: 320, height: 240, cancellationToken: cancellationToken);
+            path, width: 320, height: 240, throwIfNotAvailable: false,
+            cancellationToken: cancellationToken);
         var overlay = await overlayService.GetOverlayIconSource(
             path, cancellationToken: cancellationToken);
 
@@ -74,7 +75,7 @@ The returned images can be assigned to WPF `Image.Source` properties; an icon or
 
 `Win32IconService` retrieves path-specific icons for existing files and folders, with file-type and stock-icon fallbacks. It caches stock and file-type icons and makes up to 5 retrieval attempts by default, with 100 milliseconds between attempts. `Attempts` must be at least 1, and `AttemptDelay` must be non-negative. If all attempts and applicable fallbacks fail, the result can be null.
 
-`Win32ThumbnailService.GetThumbnailSource` accepts a file or folder path and positive width and height. It first tries a cached thumbnail, then requests a thumbnail, and finally asks the Shell for a resized thumbnail or icon. Shell errors may be reported as exceptions.
+`Win32ThumbnailService.GetThumbnailSource` accepts a file or folder path, positive width and height, and `throwIfNotAvailable`. It first tries a cached thumbnail, then requests a thumbnail. If neither request succeeds, it throws `Win32ThumbnailException` when `throwIfNotAvailable` is `true`, so the caller can show the item another way; the exception's inner exception and `HResult` come from the last failed thumbnail request. When `throwIfNotAvailable` is `false`, it finally asks the Shell for a resized thumbnail or icon. The failed thumbnail requests are logged through Domore.Logs, a cache miss at the debug level and a failed thumbnail request at the info level. Other Shell errors may be reported as exceptions.
 
 `Win32OverlayService.GetOverlayIconSource` asks `SHGetFileInfoW` for the overlay index selected by the Shell, then retrieves that overlay image from the system image list. It returns null when the Shell reports no overlay or when the path's attributes cannot be retrieved, including for a missing path. Shell lookup and image-list errors may be reported as exceptions.
 

@@ -66,7 +66,8 @@ public sealed class Win32WindowsServicesTests {
         var implementation = new Win32WindowsServices();
         try {
             var exception = await Assert.ThrowsAsync<ArgumentNullException>(async () =>
-                await ((IWin32WindowsServices)implementation).GetThumbnailSource(path, width: 1, height: 1));
+                await ((IWin32WindowsServices)implementation).GetThumbnailSource(
+                    path, width: 1, height: 1, throwIfNotAvailable: false));
 
             Assert.That(exception.ParamName, Is.EqualTo("path"));
         }
@@ -81,7 +82,8 @@ public sealed class Win32WindowsServicesTests {
         var implementation = new Win32WindowsServices();
         try {
             var exception = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
-                await ((IWin32WindowsServices)implementation).GetThumbnailSource("unused", width, height: 1));
+                await ((IWin32WindowsServices)implementation).GetThumbnailSource(
+                    "unused", width, height: 1, throwIfNotAvailable: false));
 
             Assert.That(exception.ParamName, Is.EqualTo("width"));
         }
@@ -96,12 +98,40 @@ public sealed class Win32WindowsServicesTests {
         var implementation = new Win32WindowsServices();
         try {
             var exception = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
-                await ((IWin32WindowsServices)implementation).GetThumbnailSource("unused", width: 1, height));
+                await ((IWin32WindowsServices)implementation).GetThumbnailSource(
+                    "unused", width: 1, height, throwIfNotAvailable: false));
 
             Assert.That(exception.ParamName, Is.EqualTo("height"));
         }
         finally {
             ((IExportAndKill)implementation).Kill();
+        }
+    }
+
+    [Test]
+    public async Task GetThumbnailSource_ForwardsThrowIfNotAvailable() {
+        var implementation = new Win32WindowsServices();
+        var directory = Path.Combine(Path.GetTempPath(), $"{nameof(Win32WindowsServicesTests)}-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(directory);
+        try {
+            var services = (IWin32WindowsServices)implementation;
+            var path = Path.Combine(directory, "no-thumbnail.brows-win32-test");
+            File.WriteAllText(path, "No thumbnail handler is registered for this extension.");
+
+            var fallback = await services.GetThumbnailSource(path, width: 32, height: 32, throwIfNotAvailable: false);
+            var defaultFallback = await services.GetThumbnailSource(path, width: 32, height: 32);
+
+            using (Assert.EnterMultipleScope()) {
+                Assert.That(fallback, Is.Not.Null);
+                Assert.That(defaultFallback, Is.Not.Null);
+                Assert.That(async () => await services.GetThumbnailSource(
+                        path, width: 32, height: 32, throwIfNotAvailable: true),
+                    Throws.InstanceOf<Win32ThumbnailException>());
+            }
+        }
+        finally {
+            ((IExportAndKill)implementation).Kill();
+            Directory.Delete(directory, recursive: true);
         }
     }
 
@@ -124,7 +154,7 @@ public sealed class Win32WindowsServicesTests {
                     "unused.txt", FileAttributes.Normal, cancellation.Token),
                 Throws.InstanceOf<OperationCanceledException>());
             Assert.That(async () => await services.GetThumbnailSource(
-                    "unused.txt", width: 1, height: 1, cancellation.Token),
+                    "unused.txt", width: 1, height: 1, throwIfNotAvailable: false, cancellation.Token),
                 Throws.InstanceOf<OperationCanceledException>());
         }
         finally {

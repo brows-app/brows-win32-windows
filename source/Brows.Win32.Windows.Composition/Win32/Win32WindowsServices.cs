@@ -84,8 +84,9 @@ internal sealed class Win32WindowsServices : IWin32WindowsServices,
     Task<BitmapSource> IWin32WindowsServices.GetThumbnailSource(string path,
                                                                 int width,
                                                                 int height,
+                                                                bool throwIfNotAvailable,
                                                                 CancellationToken cancellationToken) {
-        return Services.Thumbnail.GetThumbnailSource(path, width, height, cancellationToken);
+        return Services.Thumbnail.GetThumbnailSource(path, width, height, throwIfNotAvailable, cancellationToken);
     }
 
     Task IExportAndVary<Win32WindowsServicesVariable>.Vary(Win32WindowsServicesVariable variable,

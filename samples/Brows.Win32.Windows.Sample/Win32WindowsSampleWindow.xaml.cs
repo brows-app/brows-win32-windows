@@ -144,7 +144,7 @@ sealed partial class Win32WindowsSampleWindow : Window, IExport {
         PageStatusText.Text = $"Loading previews for {path}";
 
         var overlayTask = LoadOverlayAsync(path, request, cancellation.Token);
-        var thumbnailTask = LoadThumbnailAsync(path, request, cancellation.Token);
+        var thumbnailTask = LoadThumbnailAsync(path, request, throwIfNotAvailable: false, cancellation.Token);
         var iconTask = LoadIconAsync(path, request, cancellation.Token);
         try {
             await Task.WhenAll(overlayTask, thumbnailTask, iconTask);
@@ -186,9 +186,9 @@ sealed partial class Win32WindowsSampleWindow : Window, IExport {
         }
     }
 
-    private async Task LoadThumbnailAsync(string path, int request, CancellationToken token) {
+    private async Task LoadThumbnailAsync(string path, int request, bool throwIfNotAvailable, CancellationToken token) {
         try {
-            var source = await Services.GetThumbnailSource(path, 320, 240, token);
+            var source = await Services.GetThumbnailSource(path, 320, 240, throwIfNotAvailable, token);
             if (!IsCurrent(request)) {
                 return;
             }

@@ -103,11 +103,28 @@ public interface IWin32WindowsServices : IExport {
     /// <param name="path">The path whose thumbnail or icon image is requested.</param>
     /// <param name="width">The requested image width, in pixels; must be greater than zero.</param>
     /// <param name="height">The requested image height, in pixels; must be greater than zero.</param>
+    /// <param name="throwIfNotAvailable">
+    /// <see langword="true"/> to throw <see cref="Win32ThumbnailException"/> when the Shell cannot provide a
+    /// thumbnail; <see langword="false"/>, the default, to fall back to a resized thumbnail or icon.
+    /// </param>
     /// <param name="cancellationToken">A token that can be used to cancel the request.</param>
-    /// <returns>A task that completes with the thumbnail or icon image.</returns>
+    /// <returns>
+    /// A task that completes with the thumbnail image, or, when <paramref name="throwIfNotAvailable"/> is
+    /// <see langword="false"/>, with the thumbnail or icon image.
+    /// </returns>
+    /// <remarks>
+    /// Tries a cached thumbnail first, then thumbnail generation. If both fail, the request throws
+    /// <see cref="Win32ThumbnailException"/> when <paramref name="throwIfNotAvailable"/> is
+    /// <see langword="true"/>, and otherwise asks the Shell for a resized thumbnail or icon.
+    /// </remarks>
     /// <exception cref="ArgumentNullException"><paramref name="path"/> is <see langword="null"/> or empty.</exception>
     /// <exception cref="ArgumentOutOfRangeException">
     /// <paramref name="width"/> or <paramref name="height"/> is less than or equal to zero.
+    /// </exception>
+    /// <exception cref="Win32ThumbnailException">
+    /// <paramref name="throwIfNotAvailable"/> is <see langword="true"/> and the Shell cannot provide a thumbnail,
+    /// including when it cannot create an item for <paramref name="path"/>. The inner exception is the failure of
+    /// the last thumbnail request.
     /// </exception>
     /// <exception cref="OperationCanceledException">The request was canceled.</exception>
     /// <exception cref="System.Runtime.InteropServices.COMException">A Windows Shell image request fails.</exception>
@@ -119,5 +136,6 @@ public interface IWin32WindowsServices : IExport {
         string path,
         int width,
         int height,
+        bool throwIfNotAvailable = false,
         CancellationToken cancellationToken = default);
 }
